@@ -43,10 +43,27 @@ class Rules(context: Context) {
     fun setRandomMinutes(v:Int) = pref.edit().putInt("random",v.coerceIn(0,180)).apply()
     fun onBrowsing() = pref.getBoolean("filter_on", true)
     fun setBrowsing(v: Boolean) = pref.edit().putBoolean("filter_on",v).apply()
+    /** Require a visible wait before weakening existing protection settings. */
+    fun canRelax(key:String):Boolean {
+        val waitKey="relax_at:"+key
+        val now=System.currentTimeMillis()
+        val due=pref.getLong(waitKey,0L)
+        if(due==0L) {
+            pref.edit().putLong(waitKey,now+cooldownMinutes()*60000L).apply()
+            return false
+        }
+        if(now<due)return false
+        pref.edit().remove(waitKey).apply()
+        return true
+    }
+    fun relaxWaitMinutes(key:String):Long {
+        val until=pref.getLong("relax_at:"+key,0L)
+        return if(until<=0)cooldownMinutes().toLong() else ((until-System.currentTimeMillis()).coerceAtLeast(0L)+59999L)/60000L
+    }
     fun obscureDelaySeconds() = pref.getInt("delay", 0).coerceIn(0,5)
     fun setObscureDelaySeconds(v:Int) = pref.edit().putInt("delay",if(v==5) 5 else 0).apply()
     fun markLastChallenge() = pref.edit().putLong("last_challenge",System.currentTimeMillis()).apply()
-    fun lastChallenge() = pref.getLong("last_challenge",System.currentTimeMillis())
+    fun lastChallenge() = pref.getLong("last_challenge",0L)
     fun visit(packageName:String) {
         val k="visits:" + today() + ":" + packageName
         pref.edit().putInt(k,pref.getInt(k,0)+1).apply()
