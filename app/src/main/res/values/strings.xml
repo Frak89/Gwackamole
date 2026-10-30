@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Gwackamole</string>
+    <string name="a11y_description">Gwackamole usa l\'accessibilità per capire quale app o sito è in primo piano, coprire con una talpa i risultati di ricerca vietati, far partire il minigioco e impedire che l\'app venga disinstallata o disattivata dalle Impostazioni. Nessun dato lascia il telefono.</string>
+    <string name="admin_description">Permette a Gwackamole di spegnere e bloccare lo schermo quando le talpe vincono.</string>
+</resources>

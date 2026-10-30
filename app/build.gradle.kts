@@ -1,0 +1,35 @@
+plugins {
+    id("com.android.application")
+    id("org.jetbrains.kotlin.android")
+}
+
+android {
+    namespace = "com.frak89.gwackamole"
+    compileSdk = 35
+
+    defaultConfig {
+        applicationId = "com.frak89.gwackamole"
+        minSdk = 26
+        targetSdk = 35
+        versionCode = 1
+        versionName = "0.1.0"
+    }
+
+    buildTypes {
+        release {
+            isMinifyEnabled = false
+            // Firma di debug così l'APK release è installabile subito (sideload).
+            signingConfig = signingConfigs.getByName("debug")
+        }
+    }
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+}
+
+// Nessuna dipendenza AndroidX: solo API di piattaforma (APK piccolo, nessun servizio Google).
+dependencies { }
