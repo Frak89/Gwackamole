@@ -36,6 +36,7 @@ class GuardAccessibilityService : AccessibilityService() {
         rules=Rules(this)
         wm=getSystemService(WINDOW_SERVICE) as WindowManager
         lastTime=SystemClock.elapsedRealtime()
+        if(rules.lastChallenge()==0L) rules.markLastChallenge()
         handler.post(tick)
     }
     override fun onAccessibilityEvent(event:AccessibilityEvent?) {
@@ -135,9 +136,14 @@ class GuardAccessibilityService : AccessibilityService() {
     }
     private fun showMole(bounds:Rect,id:String){
         val v=MoleBadge(this){
-            clearOverlays()
-            val level=rules.incrementAttempts(id)
-            launchChallenge(id,"",level)
+            if(rules.inCooldown()) {
+                android.widget.Toast.makeText(this,
+                    "Pausa attiva: riprova tra "+((rules.cooldownEnd()-System.currentTimeMillis()).coerceAtLeast(0L)/60000L+1L)+" min",
+                    android.widget.Toast.LENGTH_SHORT).show()
+            } else {
+                val level=rules.incrementAttempts(id)
+                launchChallenge(id,"",level)
+            }
         }
         val params=WindowManager.LayoutParams(
             bounds.width(),bounds.height(),
@@ -159,8 +165,7 @@ class GuardAccessibilityService : AccessibilityService() {
     private fun launchChallenge(id:String,targetPackage:String,level:Int=1) {
         if(SystemClock.elapsedRealtime()-lastLaunch<3000L)return
         if(rules.inCooldown()) {
-            // Cooldown blocks a new game attempt; no bypass via repeated tapping.
-            clearOverlays()
+            // Do not clear the protective overlay: it would expose the link.
             return
         }
         lastLaunch=SystemClock.elapsedRealtime()
