@@ -80,7 +80,7 @@ class GuardAccessibilityService : AccessibilityService() {
                         (System.currentTimeMillis()-rules.lastChallenge()>=randomM*60000L)
                     if((over || randomDue) && SystemClock.elapsedRealtime()-lastLaunch>15000L) {
                         val id=Rules.fingerprint("app:"+p)
-                        launchChallenge(id,p)
+                        if(!rules.inCooldown()) launchChallenge(id,p,rules.incrementAttempts(id))
                     }
                 }
             }
