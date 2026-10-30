@@ -84,7 +84,12 @@ class MainActivity : Activity() {
             text="Oscura nei browser i risultati con segnali di contenuti adulti"
             setTextColor(Color.WHITE)
             isChecked=rules.onBrowsing()
-            setOnCheckedChangeListener {_,on->rules.setBrowsing(on)}
+            setOnCheckedChangeListener {_,on->
+                if(!on && rules.onBrowsing() && !rules.canRelax("filter")) {
+                    Toast.makeText(this@MainActivity,"Per disattivare il filtro attendi "+rules.relaxWaitMinutes("filter")+" min e riprova.",Toast.LENGTH_LONG).show()
+                    isChecked=true
+                } else rules.setBrowsing(on)
+            }
         }
         content.addView(filter)
         setting("Copertura link: ritardo 0 o 5 secondi",rules.obscureDelaySeconds()) {rules.setObscureDelaySeconds(it)}
@@ -111,7 +116,12 @@ class MainActivity : Activity() {
                 isChecked=rules.blacklist(pkg)
                 setTextColor(Color.WHITE);textSize=13f
                 setOnCheckedChangeListener { _,active->
-                    rules.setBlacklist(pkg,active)
+                    if(!active && rules.blacklist(pkg) && !rules.canRelax("black:"+pkg)) {
+                        Toast.makeText(this@MainActivity,
+                            "Protezione: riprova tra "+rules.relaxWaitMinutes("black:"+pkg)+" min.",
+                            Toast.LENGTH_LONG).show()
+                        isChecked=true
+                    } else rules.setBlacklist(pkg,active)
                 }
             }
             line.addView(check,LinearLayout.LayoutParams(0,-2,1f))
@@ -126,6 +136,10 @@ class MainActivity : Activity() {
             line.addView(button("min") {
                 val n=mins.text.toString().toIntOrNull()
                 if(n!=null){
+                    if(n>rules.minutes(pkg) && rules.blacklist(pkg) && !rules.canRelax("timer:"+pkg)) {
+                        Toast.makeText(this,"Per aumentare il timer attendi "+rules.relaxWaitMinutes("timer:"+pkg)+" min o vinci il minigioco.",Toast.LENGTH_LONG).show()
+                        return@button
+                    }
                     rules.setMinutes(pkg,n)
                     Toast.makeText(this,"Tempo iniziale: "+n+" min. Usati oggi: "+(rules.usedMs(pkg)/60000)+" min",Toast.LENGTH_SHORT).show()
                 }
