@@ -101,7 +101,7 @@ class MainActivity : Activity() {
                 .putExtra("demo",true).putExtra("mole_count",5))
         })
         content.addView(text("3. BLACKLIST APP + TIMER INIZIALE",22f))
-        content.addView(text("Quando un'app raggiunge il suo tempo, una vittoria dà 5, 10 o 15 minuti aggiuntivi SOLO nel minigioco. Per modificare regole esistenti introdurremo un cooldown amministrativo verificato.",13f))
+        content.addView(text("Quando un'app raggiunge il suo tempo, una vittoria dà 5, 10 o 15 minuti aggiuntivi SOLO nel minigioco. Per disattivare il filtro o ampliare un limite già attivo viene richiesto un cooldown. Il timer si estende immediatamente solo vincendo il minigioco.",13f))
 
         val launcher=Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
         val apps=packageManager.queryIntentActivities(launcher,0)
