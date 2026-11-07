@@ -41,7 +41,7 @@ class SitesActivity : Activity() {
             switchRow("Blocca siti per adulti", Store.adultFilter) {
                 if (it != Store.adultFilter) setting("adult_filter", it, "Filtro adulti ${if (it) "on" else "off"}", looser = !it)
             }
-            switchRow("Copri con la talpa i link nei risultati di ricerca", Store.serpCover) {
+            switchRow("Copri i link vietati nei risultati di ricerca", Store.serpCover) {
                 if (it != Store.serpCover) setting("serp_cover", it, "Copertura risultati ${if (it) "on" else "off"}", looser = !it)
             }
             sliderRow("Blocco dopo", 0, 5, Store.siteGraceSec, { if (it == 0) "subito" else "$it s" }) {
@@ -50,12 +50,12 @@ class SitesActivity : Activity() {
             switchRow("Cancella la pagina dalla cronologia", Store.cleanHistory) {
                 if (it != Store.cleanHistory) setting("clean_history", it, "Pulizia cronologia ${if (it) "on" else "off"}", looser = !it)
             }
-            body("Vincere il minigioco non apre un sito per adulti: ti riporta alla ricerca. La pulizia della cronologia funziona sui browser Chromium (Chrome, Brave, Edge…).")
+            body("Quando apri un sito bloccato la scheda si chiude e il telefono va in pausa. La pulizia della cronologia funziona sui browser Chromium (Chrome, Brave, Edge…).")
         }
 
         col.card {
             eyebrow("I tuoi siti in blacklist")
-            body("Per siti come YouTube o Reddit da browser: vincere il minigioco li sblocca per ${Store.bonusMinutes} min.")
+            body("Per siti come YouTube o Reddit da browser: aprirli chiude la scheda e blocca il telefono.")
             val inp = input("es. youtube.com")
             button("Aggiungi") {
                 val d = Blocklist.hostOf(inp.text.toString())

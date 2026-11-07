@@ -5,6 +5,8 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.RectF
 import android.graphics.Typeface
 import android.net.Uri
 import android.os.Build
@@ -17,9 +19,8 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 import com.frak89.gwackamole.data.Store
-import com.frak89.gwackamole.game.MolePainter
 
-/** "Le talpe hanno vinto": conto alla rovescia. Il servizio riporta qui finché non scade. */
+/** "Telefono in pausa": conto alla rovescia. Il servizio riporta qui finché non scade. */
 class LockActivity : Activity() {
 
     private lateinit var clock: TextView
@@ -37,22 +38,21 @@ class LockActivity : Activity() {
         super.onCreate(savedInstanceState)
         Store.init(this)
         if (Build.VERSION.SDK_INT >= 27) setShowWhenLocked(true)
-        val dark = 0xFF1E1712.toInt()
+        val dark = 0xFF0C0C0C.toInt()
         window.statusBarColor = dark
         window.navigationBarColor = dark
 
         val col = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL
-            setBackgroundColor(dark); setPadding(dp(28), dp(48), dp(28), dp(32))
+            setBackgroundColor(dark); setPadding(dp(28), dp(64), dp(28), dp(32))
         }
-        val kick = Store.lockKind == "kick"
-        col.addView(MolesView(this), LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(120)))
+        col.addView(BlockMark(this), LinearLayout.LayoutParams(dp(96), dp(96)).apply { gravity = Gravity.CENTER_HORIZONTAL })
         col.addView(TextView(this).apply {
-            text = if (kick) "USCITA FORZATA" else "LE TALPE HANNO VINTO"; textSize = 13f; setTextColor(0xFFF5B78A.toInt()); typeface = Typeface.DEFAULT_BOLD
-            letterSpacing = 0.12f; gravity = Gravity.CENTER; setPadding(0, dp(18), 0, dp(6))
+            text = "NERO BLOCK"; textSize = 13f; setTextColor(0xFF8A8A8A.toInt()); typeface = Typeface.DEFAULT_BOLD
+            letterSpacing = 0.2f; gravity = Gravity.CENTER; setPadding(0, dp(20), 0, dp(6))
         })
         col.addView(TextView(this).apply {
-            text = if (!kick) "Telefono in pausa" else if (Store.kickLockSec == 60) "Un minuto di pausa" else "Pausa forzata"
+            text = if (Store.kickLockSec == 60) "Un minuto di pausa" else "Telefono in pausa"
             textSize = 34f; setTextColor(0xFFFFFFFF.toInt()); gravity = Gravity.CENTER
             typeface = Typeface.create("sans-serif-black", Typeface.NORMAL)
         })
@@ -60,9 +60,9 @@ class LockActivity : Activity() {
         col.addView(TextView(this).apply {
             text = quote?.let { "“$it”" } ?: "Riprova quando il conto alla rovescia arriva a zero."
             textSize = if (quote != null) 18f else 15f
-            setTextColor(if (quote != null) 0xFFFFFFFF.toInt() else 0xFFE6DCC5.toInt())
+            setTextColor(if (quote != null) 0xFFFFFFFF.toInt() else 0xFFBDBDBD.toInt())
             if (quote != null) typeface = Typeface.create("serif", Typeface.ITALIC)
-            gravity = Gravity.CENTER; setPadding(0, dp(12), 0, dp(18))
+            gravity = Gravity.CENTER; setPadding(dp(6), dp(12), dp(6), dp(18))
         })
         clock = TextView(this).apply {
             textSize = 80f; setTextColor(0xFFFFFFFF.toInt()); gravity = Gravity.CENTER
@@ -70,14 +70,12 @@ class LockActivity : Activity() {
         }
         col.addView(clock)
         col.addView(TextView(this).apply {
-            text = if (kick) "Hai aperto qualcosa in blacklist: l'app è stata chiusa."
-            else "Round persi oggi: ${Store.lossesToday()} · il prossimo blocco dura " +
-                "${Store.lockBaseMinutes + Store.lockStepMinutes * Store.lossesToday()} min"
-            textSize = 13f; setTextColor(0xFFE6DCC5.toInt()); gravity = Gravity.CENTER; setPadding(0, dp(18), 0, dp(24))
+            text = "Blocchi oggi: ${Store.lossesToday()} · il prossimo dura di più"
+            textSize = 13f; setTextColor(0xFFBDBDBD.toInt()); gravity = Gravity.CENTER; setPadding(0, dp(18), 0, dp(24))
         })
         col.addView(Button(this).apply {
             text = "Chiamata di emergenza"; isAllCaps = false; setTextColor(0xFFFFFFFF.toInt()); stateListAnimator = null
-            background = rounded(dark, dp(16).toFloat(), dp(2), 0xFF4A3B2C.toInt())
+            background = rounded(dark, dp(16).toFloat(), dp(2), 0xFF3A3A3A.toInt())
             setOnClickListener { startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:112"))) }
         }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(52)))
 
@@ -101,17 +99,21 @@ class LockActivity : Activity() {
     override fun onBackPressed() { /* niente */ }
 
     @SuppressLint("ViewConstructor")
-    private class MolesView(ctx: Context) : View(ctx) {
+    private class BlockMark(ctx: Context) : View(ctx) {
+        private val p = Paint(Paint.ANTI_ALIAS_FLAG)
+        private val s = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = 0xFFFFFFFF.toInt(); style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND
+        }
+        private val rr = RectF()
         override fun onDraw(c: Canvas) {
-            val s = height * 0.8f
-            val gap = s * 0.1f
-            val total = s * 3 + gap * 2
-            var x = (width - total) / 2
-            for (i in 0 until 3) {
-                val sc = if (i == 1) 1f else 0.8f
-                MolePainter.draw(c, x + s * (1 - sc) / 2, height - s * sc * 1.1f, s * sc, s * sc * 1.1f, MolePainter.Mood.SMUG)
-                x += s + gap
-            }
+            val w = width.toFloat(); val h = height.toFloat()
+            p.color = 0xFF1A1A1A.toInt()
+            rr.set(w * 0.1f, h * 0.1f, w * 0.9f, h * 0.9f)
+            c.drawRoundRect(rr, w * 0.2f, w * 0.2f, p)
+            s.strokeWidth = w * 0.07f
+            val cx = w / 2; val cy = h / 2; val r = w * 0.22f
+            c.drawCircle(cx, cy, r, s)
+            c.drawLine(cx - r * 0.7f, cy - r * 0.7f, cx + r * 0.7f, cy + r * 0.7f, s)
         }
     }
 }

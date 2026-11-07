@@ -53,21 +53,21 @@ class MainActivity : Activity() {
     }
 
     private fun perms(): List<Perm> = listOf(
-        Perm("Accessibilità", "Vede app e siti aperti, copre i link vietati con la talpa, protegge le Impostazioni.",
+        Perm("Accessibilità", "Vede app e siti aperti, copre i link vietati nei risultati, protegge le Impostazioni.",
             ::accessibilityOn) {
-            if (Build.VERSION.SDK_INT >= 33) toast("Se è disattivato: Impostazioni › App › Gwackamole › ⋮ › Consenti impostazioni limitate")
+            if (Build.VERSION.SDK_INT >= 33) toast("Se è disattivato: Impostazioni › App › Nero Block › ⋮ › Consenti impostazioni limitate")
             startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
         },
         Perm("Utilizzo app", "Misura il tempo di ogni app in blacklist.", { UsageTracker.hasPermission(this) }) {
             startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
         },
-        Perm("Mostra sopra altre app", "Fa comparire il minigioco ovunque.", { Settings.canDrawOverlays(this) }) {
+        Perm("Mostra sopra altre app", "Mostra il blocco e i banner ovunque.", { Settings.canDrawOverlays(this) }) {
             startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
         },
-        Perm("Amministratore dispositivo", "Spegne e blocca lo schermo se le talpe vincono.", { Protection.isAdmin(this) }) {
+        Perm("Amministratore dispositivo", "Spegne e blocca lo schermo quando scatta un blocco.", { Protection.isAdmin(this) }) {
             startActivity(Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN)
                 .putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, Protection.admin(this))
-                .putExtra(DevicePolicyManager.EXTRA_ADD_EXPLANATION, "Serve per spegnere e bloccare lo schermo quando perdi."))
+                .putExtra(DevicePolicyManager.EXTRA_ADD_EXPLANATION, "Serve per spegnere e bloccare lo schermo quando scatta un blocco."))
         },
         Perm("Notifiche", "Avvisi prima che finisca il tempo.", {
             Build.VERSION.SDK_INT < 33 || checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
@@ -94,8 +94,8 @@ class MainActivity : Activity() {
     private fun render() {
         val col = page()
         col.eyebrow(if (Store.armed) "Protezioni armate" else "Configurazione")
-        col.title("Gwackamole", 34f)
-        col.body("Quando arriva una distrazione arrivano le talpe. Martellale tutte e guadagni minuti; se vincono loro, lo schermo si spegne.")
+        col.title("Nero Block", 34f)
+        col.body("Quando arriva una distrazione l'app si chiude e il telefono va in pausa per un po'. Nessun gioco, nessuna scorciatoia.")
         col.gap(16)
 
         val list = perms()
@@ -108,7 +108,7 @@ class MainActivity : Activity() {
         col.card {
             if (!Store.armed) {
                 eyebrow("Modalità rigida")
-                body("Armando le protezioni: niente accesso a Impostazioni › Gwackamole, niente disinstallazione, " +
+                body("Armando le protezioni: niente accesso a Impostazioni › Nero Block, niente disinstallazione, " +
                     "e ogni modifica che allenta le regole parte solo dopo ${Store.cooldownHours} ore.", C.INK)
                 button("Arma le protezioni") { arm() }
             } else {
@@ -123,8 +123,8 @@ class MainActivity : Activity() {
         col.button("Siti web e filtro adulti") { startActivity(Intent(this, SitesActivity::class.java)) }
         col.button("Regole, blocco e cooldown") { startActivity(Intent(this, RulesActivity::class.java)) }
         col.button("Analisi del comportamento", primary = false) { startActivity(Intent(this, StatsActivity::class.java)) }
-        col.button("Prova il minigioco", primary = false) {
-            Guardian.launchGame(this, "test", "Prova", Reason.TEST, 3, 0)
+        col.button("Prova il blocco", primary = false) {
+            Guardian.block("test", "Prova", Reason.TEST)
         }
     }
 
@@ -161,7 +161,7 @@ class MainActivity : Activity() {
         }
         AlertDialog.Builder(this)
             .setTitle("Armare le protezioni?")
-            .setMessage("Da questo momento:\n• Impostazioni › Gwackamole e la disinstallazione ti riportano alla Home\n" +
+            .setMessage("Da questo momento:\n• Impostazioni › Nero Block e la disinstallazione ti riportano alla Home\n" +
                 "• allungare i timer o togliere app/siti dalla blacklist richiede ${Store.cooldownHours} h di attesa\n" +
                 "• l'unico modo di uscire è \"Disattiva protezioni\", che parte dopo il cooldown.\n\n" +
                 "Le chiamate d'emergenza restano sempre possibili.")

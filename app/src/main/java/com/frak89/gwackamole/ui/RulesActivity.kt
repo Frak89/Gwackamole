@@ -33,31 +33,31 @@ class RulesActivity : Activity() {
     private fun render() {
         val col = page()
         col.eyebrow("Regole")
-        col.title("Premi e punizioni")
+        col.title("Blocco")
         col.gap(12)
 
         col.card {
-            eyebrow("Quando scatta un blocco")
-            choiceRow("Modalità", listOf(
-                "moles" to "Talpe: minigioco, vinci minuti o perdi e il telefono si blocca",
-                "kick" to "Uscita forzata: l'app si chiude e il telefono si blocca, niente gioco",
-            ), Store.punishMode) {
-                if (it != Store.punishMode) set("punish_mode", it,
-                    if (it == "kick") "Modalità uscita forzata" else "Modalità talpe", looser = true)
-            }
-            sliderRow("Blocco con uscita forzata", 1, 20, Store.kickLockSec / 30, {
+            eyebrow("Durata del blocco")
+            sliderRow("Telefono in pausa per", 1, 20, Store.kickLockSec / 30, {
                 val s = it * 30
                 if (s % 60 == 0) "${s / 60} min" else "${s / 60} min ${s % 60} s"
             }) {
                 val v = it * 30
-                if (v != Store.kickLockSec) set("kick_lock_s", v, "Uscita forzata: blocco ${v}s", looser = v < Store.kickLockSec)
+                if (v != Store.kickLockSec) set("kick_lock_s", v, "Blocco ${v}s", looser = v < Store.kickLockSec)
             }
-            body("Ogni app può anche avere la sua modalità (App in blacklist › tocca l'app).")
+            sliderRow("In più a ogni blocco del giorno", 0, 10, Store.lockStepSec / 30, {
+                val s = it * 30
+                if (s == 0) "niente" else if (s % 60 == 0) "+${s / 60} min" else "+${s}s"
+            }) {
+                val v = it * 30
+                if (v != Store.lockStepSec) set("lock_step_s", v, "Recidiva +${v}s", looser = v < Store.lockStepSec)
+            }
+            body("Quando scatta un blocco l'app si chiude e lo schermo si spegne. Al riavvio trovi il conto alla rovescia. Le chiamate d'emergenza funzionano sempre.")
         }
 
         col.card {
             eyebrow("Testi personalizzati")
-            body("Ne compare uno a caso nel blocco, prima del minigioco e quando provi ad aggirare le regole.")
+            body("Ne compare uno a caso nel blocco e quando provi ad aggirare le regole.")
             val texts = Store.customTexts()
             for ((i, t) in texts.withIndex()) {
                 val r = LinearLayout(this@RulesActivity).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
@@ -82,35 +82,14 @@ class RulesActivity : Activity() {
         }
 
         col.card {
-            eyebrow("Se vinci")
-            sliderRow("Minuti guadagnati", 1, 3, Store.bonusMinutes / 5, { "${it * 5} min" }) {
-                val v = it * 5
-                if (v != Store.bonusMinutes) set("bonus_minutes", v, "Premio $v min", looser = v > Store.bonusMinutes)
-            }
-        }
-
-        col.card {
-            eyebrow("Se vincono le talpe")
-            sliderRow("Blocco iniziale", 1, 12, Store.lockBaseMinutes / 5, { "${it * 5} min" }) {
-                val v = it * 5
-                if (v != Store.lockBaseMinutes) set("lock_base", v, "Blocco $v min", looser = v < Store.lockBaseMinutes)
-            }
-            sliderRow("In più a ogni sconfitta", 0, 6, Store.lockStepMinutes / 5, { "+${it * 5} min" }) {
-                val v = it * 5
-                if (v != Store.lockStepMinutes) set("lock_step", v, "Blocco +$v min", looser = v < Store.lockStepMinutes)
-            }
-            body("Lo schermo si spegne e al riavvio trovi il conto alla rovescia. Le chiamate d'emergenza funzionano sempre.")
-        }
-
-        col.card {
-            eyebrow("Talpe a sorpresa")
+            eyebrow("Blocchi a sorpresa")
             switchRow("Durante l'uso delle app in blacklist", Store.randomChecks) {
-                if (it != Store.randomChecks) set("random_checks", it, "Talpe a sorpresa ${if (it) "on" else "off"}", looser = !it)
+                if (it != Store.randomChecks) set("random_checks", it, "A sorpresa ${if (it) "on" else "off"}", looser = !it)
             }
             sliderRow("Schermo acceso di fila", 0, 12, Store.screenLimitMin / 15, { if (it == 0) "mai" else "${it * 15} min" }) {
                 val v = it * 15
                 val old = Store.screenLimitMin
-                if (v != old) set("screen_limit", v, "Talpe dopo $v min di schermo", looser = v == 0 || (old != 0 && v > old))
+                if (v != old) set("screen_limit", v, "Blocco dopo $v min di schermo", looser = v == 0 || (old != 0 && v > old))
             }
         }
 

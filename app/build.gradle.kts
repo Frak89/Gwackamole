@@ -8,7 +8,7 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.frak89.gwackamole"
+        applicationId = "com.frak89.neroblock"
         minSdk = 26
         targetSdk = 35
         versionCode = 1

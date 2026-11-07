@@ -34,7 +34,7 @@ class GwackAccessibilityService : AccessibilityService(), GuardianHost {
     override val context: Context get() = this
 
     private val h = Handler(Looper.getMainLooper())
-    private lateinit var overlay: MoleOverlay
+    private lateinit var overlay: BlockOverlay
     private lateinit var shield: Shield
     private var imePkgs: Set<String> = emptySet()
     private var browsers: Set<String> = emptySet()
@@ -54,7 +54,7 @@ class GwackAccessibilityService : AccessibilityService(), GuardianHost {
     override fun onServiceConnected() {
         super.onServiceConnected()
         Store.init(this); EventLog.init(this); Blocklist.init(this)
-        overlay = MoleOverlay(this)
+        overlay = BlockOverlay(this)
         shield = Shield(this)
         refreshPackageSets()
         Guardian.attach(this)
@@ -250,10 +250,10 @@ class GwackAccessibilityService : AccessibilityService(), GuardianHost {
         bfs(root, 600).firstOrNull { it.className?.toString() == "android.webkit.WebView" }
 
     /** Trova i risultati da coprire: link cliccabili con parole vietate o domini in blacklist. */
-    private fun findCoverTargets(web: AccessibilityNodeInfo, query: String): List<MoleOverlay.Target> {
+    private fun findCoverTargets(web: AccessibilityNodeInfo, query: String): List<BlockOverlay.Target> {
         val screenH = resources.displayMetrics.heightPixels
         val webRect = Rect().also { web.getBoundsInScreen(it) }
-        val found = ArrayList<MoleOverlay.Target>()
+        val found = ArrayList<BlockOverlay.Target>()
         val q = query.trim().lowercase(Locale.ROOT)
 
         for (n in bfs(web, 2500)) {
@@ -276,11 +276,11 @@ class GwackAccessibilityService : AccessibilityService(), GuardianHost {
             // impara i siti dai risultati: se lo snippet dice "porn", il dominio va in blacklist
             if (Blocklist.looksStronglyAdult(blob)) domains.forEach { Blocklist.learn(it) }
             val label = adultDomain ?: domains.firstOrNull() ?: "ricerca"
-            found.add(MoleOverlay.Target(r, label))
+            found.add(BlockOverlay.Target(r, label))
         }
         // tieni il riquadro più esterno: niente banner dentro banner
         val sorted = found.sortedByDescending { it.bounds.width() * it.bounds.height() }
-        val kept = ArrayList<MoleOverlay.Target>()
+        val kept = ArrayList<BlockOverlay.Target>()
         for (t in sorted) if (kept.none { it.bounds.contains(t.bounds) }) kept.add(t)
         return kept.sortedBy { it.bounds.top }
     }
@@ -312,7 +312,7 @@ class GwackAccessibilityService : AccessibilityService(), GuardianHost {
     }
 
     companion object {
-        const val APP_LABEL = "Gwackamole"
+        const val APP_LABEL = "Nero Block"
 
         val SETTINGS_PKGS = setOf(
             "com.android.settings", "com.samsung.android.settings", "com.google.android.packageinstaller",
@@ -331,7 +331,7 @@ class GwackAccessibilityService : AccessibilityService(), GuardianHost {
         val DANGER_WORDS = listOf(
             "disinstalla", "uninstall", "forza interruzione", "forza arresto", "termina", "force stop",
             "disattiva", "disable", "cancella dati", "cancella memoria", "svuota", "clear data", "clear storage",
-            "amministratore", "device admin", "usa gwackamole", "use gwackamole", "disattiva servizio",
+            "amministratore", "device admin", "usa nero block", "use nero block", "disattiva servizio",
             "turn off", "arresto forzato", "rimuovi", "remove",
         )
 

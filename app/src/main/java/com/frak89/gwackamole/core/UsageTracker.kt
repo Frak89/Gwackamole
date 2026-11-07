@@ -53,7 +53,7 @@ object UsageTracker {
     /** Minuti rimasti oggi per una regola (limite + bonus vinti − usati). */
     fun remainingMs(ctx: Context, pkg: String): Long {
         val rule = Store.rules()[pkg] ?: return Long.MAX_VALUE
-        val allowed = (rule.limitMin + Store.bonusToday(pkg)) * 60_000L
+        val allowed = rule.limitMin * 60_000L
         return allowed - usedTodayMs(ctx, pkg)
     }
 }

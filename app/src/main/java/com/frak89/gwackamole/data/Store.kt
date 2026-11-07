@@ -10,24 +10,21 @@ import java.time.LocalDate
 data class AppRule(
     val pkg: String,
     val label: String,
-    /** Minuti al giorno. Si allunga subito solo vincendo il minigioco; allentare la regola richiede il cooldown. */
+    /** Minuti al giorno. Allentare la regola richiede il cooldown. */
     val limitMin: Int,
-    /** Secondi di tolleranza prima che compaia il minigioco quando il tempo è finito. */
+    /** Secondi di tolleranza prima del blocco quando il tempo è finito. */
     val graceSec: Int,
-    /** Talpe a sorpresa durante l'uso. */
+    /** Controlli a sorpresa durante l'uso. */
     val randomChecks: Boolean,
-    /** "default" = segue l'impostazione generale, "moles" = minigioco, "kick" = uscita forzata + blocco. */
-    val mode: String = "default",
 ) {
     fun toJson(): JSONObject = JSONObject()
         .put("pkg", pkg).put("label", label).put("limit", limitMin)
-        .put("grace", graceSec).put("random", randomChecks).put("mode", mode)
+        .put("grace", graceSec).put("random", randomChecks)
 
     companion object {
         fun fromJson(o: JSONObject) = AppRule(
             o.getString("pkg"), o.optString("label", o.getString("pkg")),
             o.optInt("limit", 30), o.optInt("grace", 3), o.optBoolean("random", false),
-            o.optString("mode", "default"),
         )
     }
 }
@@ -65,43 +62,25 @@ object Store {
         get() = sp.getBoolean("armed", false)
         set(v) = sp.edit().putBoolean("armed", v).apply()
 
-    var bonusMinutes: Int
-        get() = sp.getInt("bonus_minutes", 10)
-        set(v) = sp.edit().putInt("bonus_minutes", v).apply()
-
-    var lockBaseMinutes: Int
-        get() = sp.getInt("lock_base", 15)
-        set(v) = sp.edit().putInt("lock_base", v).apply()
-
-    var lockStepMinutes: Int
-        get() = sp.getInt("lock_step", 5)
-        set(v) = sp.edit().putInt("lock_step", v).apply()
-
     /** Secondi prima del blocco per i siti per adulti (0 = subito, max 5). */
     var siteGraceSec: Int
         get() = sp.getInt("site_grace", 0)
         set(v) = sp.edit().putInt("site_grace", v.coerceIn(0, 5)).apply()
 
-    /** Minuti di schermo acceso continuo prima di una talpa (0 = spento). */
+    /** Minuti di schermo acceso continuo prima del blocco (0 = spento). */
     var screenLimitMin: Int
         get() = sp.getInt("screen_limit", 45)
         set(v) = sp.edit().putInt("screen_limit", v).apply()
 
-    /** Modalità generale: "moles" (minigioco) oppure "kick" (uscita forzata + blocco breve, niente gioco). */
-    var punishMode: String
-        get() = sp.getString("punish_mode", "moles") ?: "moles"
-        set(v) = sp.edit().putString("punish_mode", v).apply()
-
-    /** Durata del blocco in modalità uscita forzata, in secondi (default 1 minuto). */
+    /** Durata del blocco, in secondi (default 1 minuto). */
     var kickLockSec: Int
         get() = sp.getInt("kick_lock_s", 60)
         set(v) = sp.edit().putInt("kick_lock_s", v).apply()
 
-    /** Modalità effettiva per un obiettivo (pacchetto app o "site:dominio"). */
-    fun modeFor(target: String): String {
-        val m = rules()[target]?.mode ?: "default"
-        return if (m == "default") punishMode else m
-    }
+    /** Secondi in più per ogni blocco successivo nella stessa giornata. */
+    var lockStepSec: Int
+        get() = sp.getInt("lock_step_s", 60)
+        set(v) = sp.edit().putInt("lock_step_s", v).apply()
 
     // ---------- Testi personalizzati ----------
     val DEFAULT_TEXTS = listOf(
@@ -187,10 +166,6 @@ object Store {
     fun removeSite(d: String) = sp.edit().putStringSet("sites", userSites() - d).apply()
 
     // ---------- Contatori giornalieri ----------
-    fun bonusToday(target: String): Int = sp.getInt("bonus_${today()}_$target", 0)
-    fun addBonus(target: String, min: Int) =
-        sp.edit().putInt("bonus_${today()}_$target", bonusToday(target) + min).apply()
-
     fun attemptsToday(target: String): Int = sp.getInt("att_${today()}_$target", 0)
     fun incAttempts(target: String): Int {
         val n = attemptsToday(target) + 1
@@ -219,15 +194,6 @@ object Store {
         set(v) = sp.edit().putLong("lock_until", v).apply()
 
     fun isLocked(now: Long = System.currentTimeMillis()) = lockUntil > now
-
-    /** Perché il telefono è bloccato: "moles" (hanno vinto le talpe) o "kick" (uscita forzata). */
-    var lockKind: String
-        get() = sp.getString("lock_kind", "moles") ?: "moles"
-        set(v) = sp.edit().putString("lock_kind", v).apply()
-
-    /** Permessi temporanei per siti dell'utente vinti al minigioco. */
-    fun siteAllowedUntil(host: String): Long = sp.getLong("allow_$host", 0)
-    fun allowSite(host: String, until: Long) = sp.edit().putLong("allow_$host", until).apply()
 
     // ---------- Modifiche con cooldown ----------
     fun pending(): List<PendingChange> {

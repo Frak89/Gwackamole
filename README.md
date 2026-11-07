@@ -1,51 +1,46 @@
-# Gwackamole
+# Nero Block
 
-App Android anti-distrazioni: quando arriva una distrazione arrivano le talpe.
-Martellale tutte e guadagni minuti di utilizzo; se vincono loro lo schermo si spegne, il telefono si blocca e parte un conto alla rovescia.
+App Android anti-distrazioni, **versione senza minigioco**. È la gemella di Gwackamole (branch `gwackamole-v0.1`): stesso scopo e stesse protezioni, ma al posto delle talpe da martellare il blocco è secco — **uscita forzata dall'app e telefono in pausa per un minuto** (durata regolabile).
+
+> Le due edizioni hanno `applicationId` diversi (`com.frak89.neroblock` qui, `com.frak89.gwackamole` nell'altra), quindi si possono installare entrambe sullo stesso telefono.
 
 ## Cosa fa
 
 | Funzione | Come |
 |---|---|
-| **Due modalità di blocco** | **Talpe** (il minigioco) oppure **Uscita forzata**: l'app si chiude e il telefono si blocca per poco (default 1 minuto), senza gioco. Impostabile in generale e per singola app. |
-| **Testi personalizzati** | Messaggi scritti da te che compaiono a caso nel blocco, prima del minigioco e quando provi ad aggirare le regole. |
-| **Blocco impostazioni mirato** | Scatta solo quando sei davvero sulla pagina di gestione di Gwackamole (Info app, disinstalla, forza arresto, togli accessibilità/admin), non su impostazioni qualsiasi che la nominano. Il blocco = chiusura forzata delle impostazioni + un testo. |
+| **Blocco secco** | Quando scatta un blocco l'app in primo piano si chiude (torni alla Home) e lo schermo si spegne. Al riavvio trovi un conto alla rovescia (default 1 min, +60 s per ogni blocco successivo nella stessa giornata). Nessun gioco, nessun modo di “vincere” tempo. |
+| **Testi personalizzati** | Messaggi scritti da te che compaiono a caso nella schermata di pausa e quando provi ad aggirare le regole. |
+| **Timer per app** | Ogni app in blacklist ha minuti al giorno. Accorciarli vale subito; allungarli o togliere l'app passa dal cooldown. Finito il tempo → blocco. |
+| **Blocchi a sorpresa** | Opzionali, per app, con probabilità adattata a quanto quell'app ti “cattura”. Più un limite per troppo tempo di schermo continuo. |
+| **Siti per adulti** | Blocco per dominio (lista inclusa + imparati dalle ricerche + liste pubbliche) o per parole nell'URL. |
+| **Filtro sui risultati di ricerca** | Nei risultati di Google/Bing/DuckDuckGo… i link vietati vengono coperti da un banner **dello stesso colore di fondo della pagina** (chiaro o scuro), senza bordo, così si confonde con essa. Toccarlo blocca il telefono; la ricerca resta intatta. I banner si riusano e si spostano con lo scroll, così reagiscono subito. |
+| **Impara i siti** | Se titolo o snippet di un risultato contiene porn/porno/xxx/hentai…, il dominio va in blacklist da solo. Nessuno scraping dei motori: usa solo i risultati che hai davanti. |
 | **Pulizia cronologia** | Quando un sito viene bloccato, le sue voci spariscono dalla cronologia del browser (browser Chromium: Chrome, Brave, Edge, Kiwi, Vivaldi…). Durante la pulizia uno scudo copre lo schermo. |
-| **Timer per app** | Ogni app in blacklist ha minuti al giorno. Si allungano subito solo vincendo il minigioco (+5/10/15 min). Allungarli dalle impostazioni passa dal cooldown. |
-| **Secondi prima del minigioco** | Tolleranza per app (0–10 s) e per i siti per adulti (subito o fino a 5 s). |
-| **Minigioco progressivo** | Si parte con 1 talpa; ogni nuovo tentativo sullo stesso obiettivo ne aggiunge una, fino a 10. Dentro al round ogni 2 talpe si sale di livello e tutto accelera. Talpa d'oro = vale 2; talpa col caschetto = esca, se la colpisci perdi una vita. La difficoltà sale anche con le sconfitte del giorno e col "rischio" dell'app. |
-| **Le talpe vincono** | `lockNow()` spegne lo schermo; al riavvio c'è il conto alla rovescia (15 min + 5 per ogni sconfitta del giorno). Chiamate d'emergenza sempre possibili. |
-| **Niente fughe dal gioco** | Con Device Owner: lock-task mode (Home, Recenti e swipe dal basso disattivati dal sistema). Senza: immersivo, Indietro ignorato, gesture laterali escluse, e il servizio riporta il gioco in primo piano se esci. |
-| **Talpe a sorpresa** | Opzionali, per app. Probabilità adattata a quanto quella app ti "cattura". |
-| **Troppo schermo** | Dopo N minuti di schermo acceso di fila (configurabile). |
-| **Siti per adulti** | Blocco per dominio (lista inclusa + imparati + liste pubbliche) o per parole nell'URL. |
-| **Filtro sui risultati di ricerca** | Nei risultati di Google/Bing/DuckDuckGo… i link con parole vietate vengono coperti da un banner con la talpa (overlay di accessibilità), **dello stesso colore di fondo della pagina** (chiaro o scuro) così si confonde con essa. Tocchi → minigioco o blocco; la ricerca resta intatta. I banner vengono riusati e si spostano con lo scroll, così reagiscono subito. |
-| **Impara i siti** | Se titolo o snippet di un risultato contiene porn/porno/xxx/hentai…, il dominio va in blacklist da solo. Nessuno scraping dei motori di ricerca: usa solo i risultati che hai davanti. |
-| **Protezioni (stile AppBlock)** | Con le protezioni armate: Impostazioni › App › Gwackamole, il dialogo di disinstallazione e la pagina Accessibilità ti riportano alla Home. Ogni modifica che allenta le regole parte dopo il cooldown (default 24 h). |
+| **Blocco impostazioni mirato** | Scatta solo quando sei davvero sulla pagina di gestione di Nero Block (Info app, disinstalla, forza arresto, togli accessibilità/admin), non su impostazioni qualsiasi che la nominano. Il blocco = chiusura forzata delle impostazioni + un testo. |
 | **Device Owner** | Blocca disinstallazione, arresto forzato e modalità provvisoria; opzionale anche il debug USB. |
-| **Analisi del comportamento** | Aperture, minuti, sessione media, orario di picco, vittorie/sconfitte, tentativi di bypass (ultimi 7 giorni, tutto sul telefono). |
+| **Analisi del comportamento** | Aperture, minuti, sessione media, orario di picco, blocchi scattati, tentativi di bypass (ultimi 7 giorni, tutto sul telefono). |
 
 ## Build
 
-Il workflow `.github/workflows/android.yml` compila l'APK a ogni push: lo trovi in **Actions › ultimo run › Artifacts**.
+Il workflow `.github/workflows/android.yml` compila l'APK a ogni push (Actions › ultimo run › Artifacts).
 
-In locale (Android Studio o riga di comando, JDK 17, Android SDK 35):
+In locale (JDK 17, Android SDK 35):
 
 ```bash
 gradle assembleDebug
 adb install app/build/outputs/apk/debug/app-debug.apk
 ```
 
-Il progetto non ha dipendenze esterne: solo API di piattaforma (minSdk 26, targetSdk 35).
+Nessuna dipendenza esterna: solo API di piattaforma (minSdk 26, targetSdk 35).
 
-## Installazione sul telefono
+## Installazione
 
 1. Installa l'APK.
-2. Android 13+: Impostazioni › App › Gwackamole › ⋮ › **Consenti impostazioni limitate** (altrimenti l'Accessibilità resta grigia per le app non dal Play Store).
-3. Apri Gwackamole e attiva i permessi dalla lista.
-4. **Device Owner (consigliato)** — rimuovi temporaneamente gli account (Google compreso), poi da PC:
+2. Android 13+: Impostazioni › App › Nero Block › ⋮ › **Consenti impostazioni limitate**.
+3. Apri Nero Block e attiva i permessi dalla lista.
+4. **Device Owner (consigliato)** — rimuovi temporaneamente gli account, poi da PC:
    ```bash
-   adb shell dpm set-device-owner com.frak89.gwackamole/.admin.GwackAdminReceiver
+   adb shell dpm set-device-owner com.frak89.neroblock/com.frak89.gwackamole.admin.GwackAdminReceiver
    ```
    e riaggiungi gli account.
 5. Aggiungi le app in blacklist, poi **Arma le protezioni**.
@@ -53,18 +48,13 @@ Il progetto non ha dipendenze esterne: solo API di piattaforma (minSdk 26, targe
 ### Come uscirne
 Apri l'app › **Disattiva protezioni**. Parte dopo il cooldown; con Device Owner viene rimosso anche quello, così puoi disinstallare.
 
-## Struttura
+## Rapporto con Gwackamole
 
-```
-core/     Guardian (decisioni), Behavior (analisi), Protection (admin/owner), UsageTracker, PendingApplier (cooldown)
-data/     Store (impostazioni), Blocklist (domini e parole), EventLog (diario)
-game/     MoleGameView (gioco), MoleGameActivity, MolePainter (la talpa, disegnata in codice)
-service/  GwackAccessibilityService, MoleOverlay (banner sui risultati)
-ui/       Main, Apps, Sites, Rules, Stats, Lock, Guard
-```
+Il codice condivide il package interno `com.frak89.gwackamole`. Rispetto a `gwackamole-v0.1` qui mancano il minigioco (`game/`) e tutta la logica di premi/vittorie: `Guardian` ha un'unica strada, `block()`, che chiude l'app e avvia la pausa.
 
 ## Limiti noti
 
-- L'ID della barra degli indirizzi cambia tra browser e versioni: quelli noti sono in `URL_BAR_IDS`; per gli altri c'è un riconoscimento generico.
-- Senza Device Owner la gesture Home non si può bloccare del tutto: il gioco viene riportato in primo piano in ~0,3 s.
-- Le parole per riconoscere le pagine pericolose nelle Impostazioni sono in italiano e inglese; altri produttori/lingue possono richiedere aggiunte in `DANGER_WORDS`.
+- La pulizia della cronologia guida l'interfaccia del browser via accessibilità: è best-effort e i nomi dei pulsanti variano tra browser e lingue (`HISTORY_DELETE_WORDS`).
+- Senza Device Owner la gesture Home non si può bloccare del tutto.
+- Le parole per riconoscere le pagine pericolose nelle Impostazioni sono in italiano e inglese (`DANGER_WORDS`).
+- Compila senza errori con kotlinc, ma il comportamento runtime non è stato provato su un dispositivo.

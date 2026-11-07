@@ -37,15 +37,12 @@ object PendingApplier {
                 val o = JSONObject(p.payload)
                 val v = o.get("value")
                 when (o.getString("key")) {
-                    "bonus_minutes" -> Store.bonusMinutes = (v as Number).toInt()
-                    "lock_base" -> Store.lockBaseMinutes = (v as Number).toInt()
-                    "lock_step" -> Store.lockStepMinutes = (v as Number).toInt()
                     "site_grace" -> Store.siteGraceSec = (v as Number).toInt()
                     "screen_limit" -> Store.screenLimitMin = (v as Number).toInt()
                     "cooldown_h" -> Store.cooldownHours = (v as Number).toInt()
                     "random_checks" -> Store.randomChecks = v as Boolean
-                    "punish_mode" -> Store.punishMode = v as String
                     "kick_lock_s" -> Store.kickLockSec = (v as Number).toInt()
+                    "lock_step_s" -> Store.lockStepSec = (v as Number).toInt()
                     "adult_filter" -> Store.adultFilter = v as Boolean
                     "serp_cover" -> Store.serpCover = v as Boolean
                     "clean_history" -> Store.cleanHistory = v as Boolean

@@ -7,7 +7,7 @@ import java.util.concurrent.Executors
 /**
  * Diario degli eventi per l'analisi del comportamento (resta sul telefono).
  * Riga: timestamp|tipo|target|valore
- * Tipi: OPEN, SESSION (ms), GAME_WIN, GAME_LOSS, BYPASS, SITE_BLOCK, LEARNED, RANDOM, SCREEN
+ * Tipi: OPEN, SESSION (ms), BLOCK, BYPASS, SITE_BLOCK, LEARNED, RANDOM, SCREEN
  */
 object EventLog {
     data class Event(val ts: Long, val type: String, val target: String, val value: Long)

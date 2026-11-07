@@ -37,20 +37,7 @@
         <activity android:name=".ui.StatsActivity" android:exported="false" />
         <activity android:name=".ui.RulesActivity" android:exported="false" />
 
-        <!-- Minigioco: a schermo intero, sopra la lockscreen, task separato e lock-task se Device Owner -->
-        <activity
-            android:name=".game.MoleGameActivity"
-            android:exported="false"
-            android:excludeFromRecents="true"
-            android:launchMode="singleTask"
-            android:lockTaskMode="if_whitelisted"
-            android:screenOrientation="portrait"
-            android:showWhenLocked="true"
-            android:taskAffinity="com.frak89.gwackamole.game"
-            android:theme="@style/Theme.Gwack.Fullscreen"
-            tools:ignore="DiscouragedApi,LockedOrientationActivity" />
-
-        <activity
+<activity
             android:name=".ui.LockActivity"
             android:exported="false"
             android:excludeFromRecents="true"

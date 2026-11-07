@@ -8,7 +8,6 @@ import android.telecom.TelecomManager
 import com.frak89.gwackamole.data.Blocklist
 import com.frak89.gwackamole.data.EventLog
 import com.frak89.gwackamole.data.Store
-import com.frak89.gwackamole.game.MoleGameActivity
 import com.frak89.gwackamole.ui.GuardActivity
 import com.frak89.gwackamole.ui.LockActivity
 import kotlin.random.Random
@@ -49,8 +48,6 @@ object Guardian {
     private var fgSince = 0L
     private var currentHost: String? = null
 
-    @Volatile var gameActive = false; private set
-    private var gameStartedAt = 0L
     private var scheduledKey: String? = null
     private var lastRandomAt = 0L
     private var lastRandomRoll = 0L
@@ -92,10 +89,7 @@ object Guardian {
     // ------------------------------------------------------------------ eventi dal servizio
 
     fun onForeground(pkg: String) {
-        if (pkg in ignorePkgs) {
-            if (gameActive) host?.dismissShade()
-            return
-        }
+        if (pkg in ignorePkgs) return
         val now = System.currentTimeMillis()
         if (pkg != fgPkg) {
             closeSession(now)
@@ -106,17 +100,12 @@ object Guardian {
         }
         if (own(pkg)) return
 
-        // 1) telefono in punizione: si torna al conto alla rovescia (chiamate sempre permesse)
+        // telefono in pausa: si torna al conto alla rovescia (chiamate sempre permesse)
         if (Store.isLocked(now)) {
             if (pkg !in alwaysAllowedWhenLocked && pkg != dialerPkg()) showLock()
             return
         }
-        // 2) minigioco in corso: niente fughe
-        if (gameActive) {
-            if (now - gameStartedAt > 120_000) gameActive = false // sicurezza: partita orfana
-            else { bringGameBack(); return }
-        }
-        // 3) app in blacklist
+        // app in blacklist
         checkAppTime(pkg)
     }
 
@@ -136,7 +125,7 @@ object Guardian {
 
     /** URL letto dalla barra degli indirizzi di un browser. */
     fun onUrl(browserPkg: String, url: String) {
-        if (fgPkg != browserPkg || gameActive || Store.isLocked()) return
+        if (fgPkg != browserPkg || Store.isLocked()) return
         val hostName = Blocklist.hostOf(url) ?: return
         currentHost = hostName
         if (Blocklist.isSearchEngine(hostName)) return // la ricerca non si tocca: si coprono solo i link
@@ -148,8 +137,7 @@ object Guardian {
 
         when {
             adult -> scheduleSiteBlock(browserPkg, hostName, Reason.ADULT_SITE, Store.siteGraceSec)
-            userSite != null && Store.siteAllowedUntil(userSite) < now ->
-                scheduleSiteBlock(browserPkg, userSite, Reason.USER_SITE, 0)
+            userSite != null -> scheduleSiteBlock(browserPkg, userSite, Reason.USER_SITE, 0)
         }
     }
 
@@ -160,30 +148,29 @@ object Guardian {
         recentlyHandled[key] = now
         h.postDelayed({
             // dopo la tolleranza, se sei ancora lì: pulisci la cronologia, poi indietro e blocco
-            if (fgPkg == browserPkg && currentHost?.endsWith(site) == true && !gameActive) {
+            if (fgPkg == browserPkg && currentHost?.endsWith(site) == true) {
                 EventLog.log("SITE_BLOCK", key)
                 if (Store.cleanHistory) {
                     host?.cleanHistory(browserPkg, site)
-                    h.postDelayed({ host?.goBack(); requestGame(key, site, reason) }, 1_600)
+                    h.postDelayed({ host?.goBack(); block(key, site, reason) }, 1_600)
                 } else {
                     host?.goBack()
-                    requestGame(key, site, reason)
+                    block(key, site, reason)
                 }
             }
         }, graceSec * 1000L + 50)
     }
 
-    /** Tap sul banner con la talpa che copre un link. La ricerca resta dov'è. */
+    /** Tap sul banner che copre un link. La ricerca resta dov'è: si blocca solo il telefono. */
     fun onCoveredLinkTapped(domainOrLabel: String) {
-        if (gameActive) return
         EventLog.log("SITE_BLOCK", "site:$domainOrLabel")
-        requestGame("site:$domainOrLabel", domainOrLabel, Reason.ADULT_LINK)
+        block("site:$domainOrLabel", domainOrLabel, Reason.ADULT_LINK)
     }
 
     /**
-     * Il servizio ha visto la pagina di gestione DI Gwackamole (Info app, disinstalla, forza
+     * Il servizio ha visto la pagina di gestione DI Nero Block (Info app, disinstalla, forza
      * arresto, togli accessibilità/admin). Il blocco qui è: chiudere di forza le impostazioni e
-     * mostrare un testo. Niente minigioco: serve solo a non farsi disattivare.
+     * mostrare un testo.
      */
     fun onBypassAttempt(what: String) {
         if (!Store.armed) return
@@ -211,8 +198,8 @@ object Guardian {
         scheduledKey = key
         h.postDelayed({
             scheduledKey = null
-            if (fgPkg == pkg && !gameActive && !Store.isLocked() && UsageTracker.remainingMs(c, pkg) <= 0) {
-                requestGame(pkg, rule.label, Reason.TIME_UP)
+            if (fgPkg == pkg && !Store.isLocked() && UsageTracker.remainingMs(c, pkg) <= 0) {
+                block(pkg, rule.label, Reason.TIME_UP)
             }
         }, rule.graceSec * 1000L + 50)
     }
@@ -227,11 +214,11 @@ object Guardian {
             if (!own(pkg) && pkg !in alwaysAllowedWhenLocked && pkg != dialerPkg()) showLock()
             return
         }
-        if (gameActive || own(pkg)) return
+        if (own(pkg)) return
 
         checkAppTime(pkg)
 
-        // talpe a sorpresa (solo se impostate, con probabilità adattata al comportamento)
+        // controlli a sorpresa (solo se impostati, con probabilità adattata al comportamento)
         val rule = Store.rules()[pkg]
         if (rule != null && rule.randomChecks && Store.randomChecks &&
             now - fgSince > 120_000 && now - lastRandomAt > 300_000 && now - lastRandomRoll > 60_000
@@ -241,7 +228,7 @@ object Guardian {
             if (Random.nextDouble() < p) {
                 lastRandomAt = now
                 EventLog.log("RANDOM", pkg)
-                requestGame(pkg, rule.label, Reason.RANDOM)
+                block(pkg, rule.label, Reason.RANDOM)
                 return
             }
         }
@@ -249,9 +236,9 @@ object Guardian {
         // troppo tempo di schermo continuo
         val lim = Store.screenLimitMin
         if (lim > 0 && now - screenOnSince > lim * 60_000L) {
-            screenOnSince = now // evita raffiche; se perdi parte comunque il blocco
+            screenOnSince = now
             EventLog.log("SCREEN", "screen", lim.toLong())
-            requestGame("screen", "Schermo", Reason.SCREEN)
+            block("screen", "Schermo", Reason.SCREEN)
         }
     }
 
@@ -259,102 +246,28 @@ object Guardian {
         for (p in Store.takeDuePending()) PendingApplier.apply(c, p)
     }
 
-    // ------------------------------------------------------------------ minigioco
-
-    /** Quante talpe: parte da 1 e sale a ogni nuovo tentativo sullo stesso obiettivo, fino a 10. */
-    private fun seedFor(target: String, reason: Reason): Int {
-        val attempts = Store.incAttempts(target)
-        val base = when (reason) {
-            Reason.RANDOM -> 1 + (Behavior.risk(target) * 3).toInt()
-            Reason.BYPASS -> 3 + Store.bypassToday()
-            Reason.TEST -> 3
-            Reason.ADULT_SITE, Reason.ADULT_LINK -> maxOf(attempts, (Store.incAttempts("adult") + 1) / 2)
-            else -> attempts
-        }
-        return base.coerceIn(1, 10)
-    }
-
-    /** Difficoltà (velocità, esche, vite): sale con le sconfitte di oggi e col "rischio" del target. */
-    private fun difficultyFor(target: String): Int =
-        (Store.lossesToday() + (Behavior.risk(target) * 3).toInt() + Store.attemptsToday(target) / 3).coerceIn(0, 8)
-
-    fun requestGame(target: String, label: String, reason: Reason) {
-        val c = ctx ?: return
-        if (gameActive) return
-        if (Store.modeFor(target) == "kick") { kick(c, target, reason); return }
-        val seed = seedFor(target, reason)
-        launchGame(c, target, label, reason, seed, difficultyFor(target))
-    }
-
-    /** Usato anche dalla UI per la partita di prova. */
-    fun launchGame(c: Context, target: String, label: String, reason: Reason, seed: Int, difficulty: Int) {
-        gameActive = true
-        gameStartedAt = System.currentTimeMillis()
-        lastGameIntent = Intent(c, MoleGameActivity::class.java)
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
-            .putExtra(MoleGameActivity.EXTRA_TARGET, target)
-            .putExtra(MoleGameActivity.EXTRA_LABEL, label)
-            .putExtra(MoleGameActivity.EXTRA_REASON, reason.name)
-            .putExtra(MoleGameActivity.EXTRA_SEED, seed)
-            .putExtra(MoleGameActivity.EXTRA_DIFFICULTY, difficulty)
-        c.startActivity(lastGameIntent)
-    }
-
-    private var lastGameIntent: Intent? = null
-
-    private fun bringGameBack() {
-        val c = ctx ?: return
-        val i = lastGameIntent ?: return
-        c.startActivity(Intent(i).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
-            .putExtra(MoleGameActivity.EXTRA_RESUME, true))
-    }
-
-    fun onGameResult(c: Context, target: String, reason: Reason, won: Boolean) {
-        gameActive = false
-        lastGameIntent = null
-        if (reason == Reason.TEST) return
-        val now = System.currentTimeMillis()
-        if (won) {
-            EventLog.log("GAME_WIN", target)
-            when (reason) {
-                Reason.TIME_UP -> Store.addBonus(target, Store.bonusMinutes)
-                Reason.USER_SITE -> Store.allowSite(target.removePrefix("site:"), now + Store.bonusMinutes * 60_000L)
-                Reason.SCREEN -> screenOnSince = now
-                else -> Unit // siti per adulti: vincere non li apre, ti riporta solo alla ricerca
-            }
-        } else {
-            EventLog.log("GAME_LOSS", target)
-            punish(c)
-        }
-    }
+    // ------------------------------------------------------------------ blocco
 
     /**
-     * Alternativa alle talpe: uscita forzata dall'app e telefono bloccato per poco (default 1 minuto),
-     * senza minigioco. Sul banner di un link coperto la ricerca resta dov'è: si blocca solo il telefono.
+     * Il blocco di Nero Block: uscita forzata dall'app (torni alla Home) e telefono in pausa per
+     * un po' (default 1 minuto, crescente con le recidive della giornata). Niente minigioco.
+     * Su un link di ricerca coperto la pagina resta dov'è: non si torna alla Home, si blocca solo.
      */
-    fun kick(c: Context, target: String, reason: Reason) {
+    fun block(target: String, label: String, reason: Reason) {
+        val c = ctx ?: return
         val now = System.currentTimeMillis()
-        if ((recentlyHandled["kick"] ?: 0) > now - 2_000) return
-        recentlyHandled["kick"] = now
+        if ((recentlyHandled["block"] ?: 0) > now - 2_000) return
+        recentlyHandled["block"] = now
         Store.incAttempts(target)
-        EventLog.log("KICK", target, reason.ordinal.toLong())
+        Store.incLosses()
+        EventLog.log("BLOCK", target, reason.ordinal.toLong())
         if (reason != Reason.ADULT_LINK) host?.goHome()
-        Store.lockKind = "kick"
-        Store.lockUntil = now + Store.kickLockSec * 1000L
+        val sec = Store.kickLockSec + Store.lockStepSec * (Store.lossesToday() - 1).coerceAtLeast(0)
+        Store.lockUntil = now + sec * 1000L
         h.postDelayed({
             c.startActivity(Intent(c, LockActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         }, 150)
         h.postDelayed({ Protection.lockNow(c) }, 700)
-    }
-
-    /** Le talpe hanno vinto: schermo spento, telefono bloccato, conto alla rovescia. */
-    fun punish(c: Context) {
-        val minutes = Store.lockBaseMinutes + Store.lockStepMinutes * Store.lossesToday()
-        Store.incLosses()
-        Store.lockKind = "moles"
-        Store.lockUntil = System.currentTimeMillis() + minutes * 60_000L
-        c.startActivity(Intent(c, LockActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-        h.postDelayed({ Protection.lockNow(c) }, 600)
     }
 
     private fun showLock() {

@@ -48,7 +48,7 @@ class AppsActivity : Activity() {
         col.eyebrow("Blacklist app")
         col.title("Timer giornalieri")
         col.body("Rendere un timer più corto vale subito. Allungarlo o togliere un'app vale solo dopo il cooldown " +
-            "(${Store.cooldownHours} h) — oppure vincendo al minigioco, +${Store.bonusMinutes} min alla volta.")
+            "(${Store.cooldownHours} h). Quando il tempo finisce, l'app si chiude e il telefono va in pausa.")
         col.gap(12)
 
         val rules = Store.rules()
@@ -70,11 +70,9 @@ class AppsActivity : Activity() {
         t.addView(TextView(this).apply { text = a.label; textSize = 15f; setTextColor(C.INK); paint.isFakeBoldText = true })
         if (rule != null) {
             val usedMin = UsageTracker.usedTodayMs(this, a.pkg) / 60_000
-            val bonus = Store.bonusToday(a.pkg)
             t.addView(TextView(this).apply {
-                text = "${rule.limitMin} min/giorno" + (if (bonus > 0) " +$bonus vinti" else "") +
-                    " · usati $usedMin · tolleranza ${rule.graceSec}s" + (if (rule.randomChecks) " · a sorpresa" else "") +
-                    when (Store.modeFor(a.pkg)) { "kick" -> " · uscita forzata"; else -> " · talpe" }
+                text = "${rule.limitMin} min/giorno · usati $usedMin · tolleranza ${rule.graceSec}s" +
+                    (if (rule.randomChecks) " · a sorpresa" else "")
                 textSize = 12f; setTextColor(C.MUTED)
             })
         }
@@ -94,21 +92,15 @@ class AppsActivity : Activity() {
         }
         box.addView(np)
         var grace = old?.graceSec ?: 3
-        box.sliderRow("Secondi prima del minigioco", 0, 10, grace, { "$it s" }) { grace = it }
+        box.sliderRow("Secondi prima del blocco", 0, 10, grace, { "$it s" }) { grace = it }
         var random = old?.randomChecks ?: true
         box.switchRow("Controlli a sorpresa durante l'uso", random) { random = it }
-        var mode = old?.mode ?: "default"
-        box.choiceRow("Quando il tempo finisce", listOf(
-            "default" to "Come l'impostazione generale",
-            "moles" to "Talpe (minigioco)",
-            "kick" to "Uscita forzata + blocco ${Store.kickLockSec / 60.0} min".replace(".0 min", " min"),
-        ), mode) { mode = it }
 
         val dlg = AlertDialog.Builder(this).setTitle(a.label).setView(box)
             .setPositiveButton("Salva") { _, _ ->
-                val nr = AppRule(a.pkg, a.label, limits[np.value], grace, random, mode)
+                val nr = AppRule(a.pkg, a.label, limits[np.value], grace, random)
                 val looser = old != null && (nr.limitMin > old.limitMin || nr.graceSec > old.graceSec ||
-                    (old.randomChecks && !nr.randomChecks) || old.mode != nr.mode)
+                    (old.randomChecks && !nr.randomChecks))
                 report(PendingApplier.request(this, "rule", nr.toJson().toString(),
                     "${a.label}: ${nr.limitMin} min, ${nr.graceSec}s", looser))
                 render()

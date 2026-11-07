@@ -25,7 +25,7 @@ object Protection {
     fun isAdmin(ctx: Context) = dpm(ctx).isAdminActive(admin(ctx))
     fun isDeviceOwner(ctx: Context) = dpm(ctx).isDeviceOwnerApp(ctx.packageName)
 
-    const val ADB_COMMAND = "adb shell dpm set-device-owner com.frak89.gwackamole/.admin.GwackAdminReceiver"
+    const val ADB_COMMAND = "adb shell dpm set-device-owner com.frak89.neroblock/com.frak89.gwackamole.admin.GwackAdminReceiver"
 
     /** Applica (o rimuove) tutte le difese disponibili in base allo stato "armato". */
     fun apply(ctx: Context) {

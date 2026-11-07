@@ -6,24 +6,24 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.PixelFormat
 import android.graphics.Rect
+import android.graphics.RectF
 import android.graphics.Typeface
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import com.frak89.gwackamole.core.Guardian
-import com.frak89.gwackamole.data.Store
-import com.frak89.gwackamole.game.MolePainter
 
 /**
- * Banner bianchi statici con la talpa, disegnati sopra i link filtrati nei risultati di ricerca.
- * Finestre TYPE_ACCESSIBILITY_OVERLAY: non serve il permesso "mostra sopra altre app".
- * Toccarli non apre il link: avvia il minigioco (o il blocco); la ricerca resta intatta.
+ * Banner che coprono i link filtrati nei risultati di ricerca. Finestre
+ * TYPE_ACCESSIBILITY_OVERLAY: non serve il permesso "mostra sopra altre app".
+ * Hanno lo stesso colore di fondo della pagina (chiaro o scuro) così si confondono con essa.
+ * Toccarli blocca il telefono; la ricerca resta intatta.
  *
  * Per essere istantaneo le finestre vengono riusate e riposizionate (niente rimuovi+aggiungi a
  * ogni scansione) e con lo scroll si spostano subito del delta. Da usare solo sul thread principale.
  */
-class MoleOverlay(private val ctx: Context) {
+class BlockOverlay(private val ctx: Context) {
     data class Target(val bounds: Rect, val label: String)
 
     private val wm = ctx.getSystemService(Context.WINDOW_SERVICE) as WindowManager
@@ -51,7 +51,7 @@ class MoleOverlay(private val ctx: Context) {
                 val v = views[i]
                 val p = params[i]
                 v.setLabel(t.label)
-                if (i >= active) { safe { wm.addView(v, p) } }
+                if (i >= active) safe { wm.addView(v, p) }
                 if (p.x != b.left || p.y != b.top || p.width != b.width() || p.height != b.height()) {
                     p.x = b.left; p.y = b.top; p.width = b.width(); p.height = b.height()
                     safe { wm.updateViewLayout(v, p) }
@@ -63,17 +63,15 @@ class MoleOverlay(private val ctx: Context) {
                 if (safe { wm.addView(v, p) }) { views.add(v); params.add(p) }
             }
         }
-        // nascondi i banner in eccesso senza distruggerli (riuso al prossimo giro)
         for (i in targets.size until active) safe { wm.removeView(views[i]) }
         active = minOf(targets.size, views.size)
     }
 
-    /** Sposta subito i banner già mostrati (reazione immediata allo scroll, prima della riscansione). */
+    /** Sposta subito i banner già mostrati (reazione immediata allo scroll). */
     fun shift(dy: Int) {
         for (i in 0 until active) {
-            val p = params[i]
-            p.y += dy
-            safe { wm.updateViewLayout(views[i], p) }
+            params[i].y += dy
+            safe { wm.updateViewLayout(views[i], params[i]) }
         }
     }
 
@@ -90,44 +88,52 @@ class MoleOverlay(private val ctx: Context) {
         private var label: String = ""
         private val d = ctx.resources.displayMetrics.density
         private val bg = Paint(Paint.ANTI_ALIAS_FLAG)
+        private val block = Paint(Paint.ANTI_ALIAS_FLAG)
+        private val slash = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = 0xFFFFFFFF.toInt(); style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND
+        }
         private val title = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             textSize = 16 * d; typeface = Typeface.DEFAULT_BOLD
         }
         private val sub = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 12 * d }
+        private val rr = RectF()
 
         init {
-            contentDescription = "Contenuto filtrato da Gwackamole. Tocca per continuare."
+            contentDescription = "Contenuto bloccato da Nero Block. Tocca per continuare."
             isClickable = true
         }
 
-        fun setLabel(l: String) {
-            if (l != label) { label = l; invalidate() }
-        }
+        fun setLabel(l: String) { if (l != label) { label = l; invalidate() } }
 
-        /** Il banner prende lo stesso colore di fondo della pagina, così si confonde con essa. */
         private fun dark(): Boolean {
-            val mode = resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK
-            return mode == android.content.res.Configuration.UI_MODE_NIGHT_YES
+            val m = resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK
+            return m == android.content.res.Configuration.UI_MODE_NIGHT_YES
         }
 
         override fun onDraw(c: Canvas) {
             val dark = dark()
             bg.color = if (dark) 0xFF1F1F1F.toInt() else 0xFFFFFFFF.toInt()
-            title.color = if (dark) 0xFFE8E8E8.toInt() else 0xFF2F4A17.toInt()
-            sub.color = if (dark) 0xFFB0B0B0.toInt() else 0xFF5C4D3D.toInt()
-            // riempie tutta l'area del risultato (nessun bordo): sembra pagina vuota con una talpa
+            title.color = if (dark) 0xFFF0F0F0.toInt() else 0xFF141414.toInt()
+            sub.color = if (dark) 0xFFB0B0B0.toInt() else 0xFF5C5C5C.toInt()
+            // riempie tutta l'area del risultato (nessun bordo): sembra pagina vuota con un blocco
             c.drawRect(0f, 0f, width.toFloat(), height.toFloat(), bg)
-            val s = minOf(height * 0.8f, 64 * d)
+            // icona: quadrato nero con divieto
+            val s = minOf(height * 0.7f, 48 * d)
+            val left = 12 * d
             val top = (height - s) / 2
-            MolePainter.draw(c, 10 * d, top, s, s * 1.0f)
+            block.color = 0xFF141414.toInt()
+            rr.set(left, top, left + s, top + s)
+            c.drawRoundRect(rr, s * 0.22f, s * 0.22f, block)
+            slash.strokeWidth = s * 0.1f
+            val cx = left + s / 2
+            val cy = top + s / 2
+            val r = s * 0.28f
+            c.drawCircle(cx, cy, r, slash)
+            c.drawLine(cx - r * 0.7f, cy - r * 0.7f, cx + r * 0.7f, cy + r * 0.7f, slash)
             if (width > s + 120 * d && height > 34 * d) {
-                val tx = 10 * d + s + 10 * d
-                val cy = height / 2f
-                val heading = if (Store.punishMode == "kick") "Contenuto bloccato" else "Qui c'è una talpa"
-                c.drawText(heading, tx, cy - 2 * d, title)
-                val cta = if (Store.punishMode == "kick") "Tocca per chiudere la ricerca"
-                else "Tocca per sfidarla · ${(Store.attemptsToday("site:$label") + 1).coerceAtMost(10)} talpe"
-                c.drawText(cta, tx, cy + 15 * d, sub)
+                val tx = left + s + 12 * d
+                c.drawText("Contenuto bloccato", tx, cy - 2 * d, title)
+                c.drawText("Tocca per continuare", tx, cy + 15 * d, sub)
             }
         }
 

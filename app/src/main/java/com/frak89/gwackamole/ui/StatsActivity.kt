@@ -28,7 +28,7 @@ class StatsActivity : Activity() {
         val profiles = Behavior.profiles(force = true)
         col.card {
             eyebrow("Oggi")
-            body("Round persi: ${Store.lossesToday()}   ·   tentativi di bypass: ${Store.bypassToday()}", C.INK, 15f)
+            body("Blocchi scattati: ${Store.lossesToday()}   ·   tentativi di bypass: ${Store.bypassToday()}", C.INK, 15f)
         }
 
         val rules = Store.rules()
@@ -37,19 +37,19 @@ class StatsActivity : Activity() {
             val used = UsageTracker.usedTodayMs(this, pkg) / 60_000
             col.card {
                 eyebrow(rule.label)
-                body("Oggi: $used / ${rule.limitMin + Store.bonusToday(pkg)} min · aperta ${p?.opensToday ?: 0} volte", C.INK, 15f)
+                body("Oggi: $used / ${rule.limitMin} min · aperta ${p?.opensToday ?: 0} volte", C.INK, 15f)
                 if (p != null) {
                     body("7 giorni: ${p.opens7d} aperture, ${p.minutes7d} min, sessione media ${p.avgSessionSec}s")
-                    body("Minigiochi: ${p.wins} vinti, ${p.losses} persi · rischio ${(p.risk * 100).toInt()}%")
+                    body("Blocchi: ${p.blocks} · rischio ${(p.risk * 100).toInt()}%")
                     body(p.advice(), C.GREEN)
                 }
             }
         }
 
-        val sites = profiles.values.filter { it.target.startsWith("site:") }.sortedByDescending { it.blocks }.take(15)
+        val sites = profiles.values.filter { it.target.startsWith("site:") }.sortedByDescending { it.siteBlocks }.take(15)
         if (sites.isNotEmpty()) col.card {
             eyebrow("Siti bloccati")
-            for (s in sites) body("${s.target.removePrefix("site:")} — ${s.blocks} blocchi, ${s.wins} vinti, ${s.losses} persi", C.INK)
+            for (s in sites) body("${s.target.removePrefix("site:")} — ${s.siteBlocks} blocchi", C.INK)
         }
 
         if (rules.isEmpty()) col.body("Aggiungi qualche app alla blacklist per vedere l'analisi.")

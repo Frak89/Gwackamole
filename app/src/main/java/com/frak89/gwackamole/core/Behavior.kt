@@ -18,24 +18,23 @@ object Behavior {
         val minutes7d: Long,
         val avgSessionSec: Long,
         val peakHour: Int?,
-        val wins: Int,
-        val losses: Int,
-        val bypass: Int,
         val blocks: Int,
+        val bypass: Int,
+        val siteBlocks: Int,
     ) {
         /** 0..1: quanto questo target "cattura" l'utente. */
         val risk: Double
             get() {
                 val opensScore = (opensToday / 25.0).coerceAtMost(1.0)
                 val shortSessions = if (avgSessionSec in 1..90) 0.25 else 0.0 // tante aperture brevi = compulsivo
-                val lossScore = if (wins + losses == 0) 0.0 else losses.toDouble() / (wins + losses) * 0.3
-                return (opensScore * 0.5 + shortSessions + lossScore + (bypass.coerceAtMost(3) * 0.1)).coerceIn(0.0, 1.0)
+                val blockScore = (blocks / 6.0).coerceAtMost(0.3)
+                return (opensScore * 0.5 + shortSessions + blockScore + (bypass.coerceAtMost(3) * 0.1)).coerceIn(0.0, 1.0)
             }
 
         fun advice(): String = buildString {
             if (peakHour != null) append("Picco di aperture verso le ${peakHour}:00. ")
             if (avgSessionSec in 1..90 && opens7d > 20) append("Molte aperture brevi: probabilmente per abitudine, non per bisogno. ")
-            if (losses > wins && losses > 2) append("Le talpe vincono spesso: valuta un limite più basso, così le sfide arrivano prima. ")
+            if (blocks > 3) append("Tanti blocchi scattati: valuta un limite più basso. ")
             if (bypass > 0) append("$bypass tentativi di aggirare le regole questa settimana. ")
             if (isEmpty()) append("Uso nella norma.")
         }.trim()
@@ -63,10 +62,9 @@ object Behavior {
                 minutes7d = sessions.sumOf { it.value } / 60_000,
                 avgSessionSec = if (sessions.isEmpty()) 0 else sessions.sumOf { it.value } / sessions.size / 1000,
                 peakHour = hours.maxByOrNull { it.value }?.key,
-                wins = ev.count { it.type == "GAME_WIN" },
-                losses = ev.count { it.type == "GAME_LOSS" },
+                blocks = ev.count { it.type == "BLOCK" },
                 bypass = ev.count { it.type == "BYPASS" },
-                blocks = ev.count { it.type == "SITE_BLOCK" },
+                siteBlocks = ev.count { it.type == "SITE_BLOCK" },
             )
         }
         cache = now to out
