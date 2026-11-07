@@ -47,7 +47,10 @@ class SitesActivity : Activity() {
             sliderRow("Blocco dopo", 0, 5, Store.siteGraceSec, { if (it == 0) "subito" else "$it s" }) {
                 if (it != Store.siteGraceSec) setting("site_grace", it, "Blocco siti dopo $it s", looser = it > Store.siteGraceSec)
             }
-            body("Vincere il minigioco non apre un sito per adulti: ti riporta alla ricerca. Perdere spegne lo schermo.")
+            switchRow("Cancella la pagina dalla cronologia", Store.cleanHistory) {
+                if (it != Store.cleanHistory) setting("clean_history", it, "Pulizia cronologia ${if (it) "on" else "off"}", looser = !it)
+            }
+            body("Vincere il minigioco non apre un sito per adulti: ti riporta alla ricerca. La pulizia della cronologia funziona sui browser Chromium (Chrome, Brave, Edge…).")
         }
 
         col.card {

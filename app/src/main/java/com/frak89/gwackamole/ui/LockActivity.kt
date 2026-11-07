@@ -45,18 +45,24 @@ class LockActivity : Activity() {
             orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL
             setBackgroundColor(dark); setPadding(dp(28), dp(48), dp(28), dp(32))
         }
+        val kick = Store.lockKind == "kick"
         col.addView(MolesView(this), LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(120)))
         col.addView(TextView(this).apply {
-            text = "LE TALPE HANNO VINTO"; textSize = 13f; setTextColor(0xFFF5B78A.toInt()); typeface = Typeface.DEFAULT_BOLD
+            text = if (kick) "USCITA FORZATA" else "LE TALPE HANNO VINTO"; textSize = 13f; setTextColor(0xFFF5B78A.toInt()); typeface = Typeface.DEFAULT_BOLD
             letterSpacing = 0.12f; gravity = Gravity.CENTER; setPadding(0, dp(18), 0, dp(6))
         })
         col.addView(TextView(this).apply {
-            text = "Telefono in pausa"; textSize = 34f; setTextColor(0xFFFFFFFF.toInt()); gravity = Gravity.CENTER
+            text = if (!kick) "Telefono in pausa" else if (Store.kickLockSec == 60) "Un minuto di pausa" else "Pausa forzata"
+            textSize = 34f; setTextColor(0xFFFFFFFF.toInt()); gravity = Gravity.CENTER
             typeface = Typeface.create("sans-serif-black", Typeface.NORMAL)
         })
+        val quote = Store.randomText()
         col.addView(TextView(this).apply {
-            text = "Riprova quando il conto alla rovescia arriva a zero."; textSize = 15f
-            setTextColor(0xFFE6DCC5.toInt()); gravity = Gravity.CENTER; setPadding(0, dp(8), 0, dp(18))
+            text = quote?.let { "“$it”" } ?: "Riprova quando il conto alla rovescia arriva a zero."
+            textSize = if (quote != null) 18f else 15f
+            setTextColor(if (quote != null) 0xFFFFFFFF.toInt() else 0xFFE6DCC5.toInt())
+            if (quote != null) typeface = Typeface.create("serif", Typeface.ITALIC)
+            gravity = Gravity.CENTER; setPadding(0, dp(12), 0, dp(18))
         })
         clock = TextView(this).apply {
             textSize = 80f; setTextColor(0xFFFFFFFF.toInt()); gravity = Gravity.CENTER
@@ -64,7 +70,8 @@ class LockActivity : Activity() {
         }
         col.addView(clock)
         col.addView(TextView(this).apply {
-            text = "Round persi oggi: ${Store.lossesToday()} · il prossimo blocco dura " +
+            text = if (kick) "Hai aperto qualcosa in blacklist: l'app è stata chiusa."
+            else "Round persi oggi: ${Store.lossesToday()} · il prossimo blocco dura " +
                 "${Store.lockBaseMinutes + Store.lockStepMinutes * Store.lossesToday()} min"
             textSize = 13f; setTextColor(0xFFE6DCC5.toInt()); gravity = Gravity.CENTER; setPadding(0, dp(18), 0, dp(24))
         })

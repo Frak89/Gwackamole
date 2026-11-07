@@ -140,3 +140,22 @@ fun Context.report(o: PendingApplier.Outcome) {
         is PendingApplier.Outcome.Queued -> toast("Allenta le regole: partirà tra ${Store.cooldownHours} h. Puoi annullarla in Regole.")
     }
 }
+
+/** Scelta singola tra opzioni (chiave, etichetta). */
+fun LinearLayout.choiceRow(
+    label: String, options: List<Pair<String, String>>, selected: String, onPick: (String) -> Unit,
+) {
+    addView(TextView(context).apply {
+        text = label; textSize = 15f; setTextColor(C.INK); typeface = Typeface.DEFAULT_BOLD
+        setPadding(0, context.dp(6), 0, context.dp(2))
+    })
+    val g = android.widget.RadioGroup(context).apply { orientation = LinearLayout.VERTICAL }
+    options.forEachIndexed { i, (key, text) ->
+        g.addView(android.widget.RadioButton(context).apply {
+            id = 1000 + i; this.text = text; textSize = 15f; setTextColor(C.INK)
+            minHeight = context.dp(44); isChecked = key == selected
+        })
+    }
+    g.setOnCheckedChangeListener { _, id -> options.getOrNull(id - 1000)?.let { onPick(it.first) } }
+    addView(g)
+}

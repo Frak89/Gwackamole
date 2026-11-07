@@ -7,6 +7,10 @@ Martellale tutte e guadagni minuti di utilizzo; se vincono loro lo schermo si sp
 
 | Funzione | Come |
 |---|---|
+| **Due modalità di blocco** | **Talpe** (il minigioco) oppure **Uscita forzata**: l'app si chiude e il telefono si blocca per poco (default 1 minuto), senza gioco. Impostabile in generale e per singola app. |
+| **Testi personalizzati** | Messaggi scritti da te che compaiono a caso nel blocco, prima del minigioco e quando provi ad aggirare le regole. |
+| **Blocco impostazioni mirato** | Scatta solo quando sei davvero sulla pagina di gestione di Gwackamole (Info app, disinstalla, forza arresto, togli accessibilità/admin), non su impostazioni qualsiasi che la nominano. Il blocco = chiusura forzata delle impostazioni + un testo. |
+| **Pulizia cronologia** | Quando un sito viene bloccato, le sue voci spariscono dalla cronologia del browser (browser Chromium: Chrome, Brave, Edge, Kiwi, Vivaldi…). Durante la pulizia uno scudo copre lo schermo. |
 | **Timer per app** | Ogni app in blacklist ha minuti al giorno. Si allungano subito solo vincendo il minigioco (+5/10/15 min). Allungarli dalle impostazioni passa dal cooldown. |
 | **Secondi prima del minigioco** | Tolleranza per app (0–10 s) e per i siti per adulti (subito o fino a 5 s). |
 | **Minigioco progressivo** | Si parte con 1 talpa; ogni nuovo tentativo sullo stesso obiettivo ne aggiunge una, fino a 10. Dentro al round ogni 2 talpe si sale di livello e tutto accelera. Talpa d'oro = vale 2; talpa col caschetto = esca, se la colpisci perdi una vita. La difficoltà sale anche con le sconfitte del giorno e col "rischio" dell'app. |
@@ -15,7 +19,7 @@ Martellale tutte e guadagni minuti di utilizzo; se vincono loro lo schermo si sp
 | **Talpe a sorpresa** | Opzionali, per app. Probabilità adattata a quanto quella app ti "cattura". |
 | **Troppo schermo** | Dopo N minuti di schermo acceso di fila (configurabile). |
 | **Siti per adulti** | Blocco per dominio (lista inclusa + imparati + liste pubbliche) o per parole nell'URL. |
-| **Filtro sui risultati di ricerca** | Nei risultati di Google/Bing/DuckDuckGo… i link con parole vietate vengono coperti da un banner bianco con la talpa (overlay di accessibilità). Tocchi → minigioco; la ricerca resta intatta. |
+| **Filtro sui risultati di ricerca** | Nei risultati di Google/Bing/DuckDuckGo… i link con parole vietate vengono coperti da un banner con la talpa (overlay di accessibilità), **dello stesso colore di fondo della pagina** (chiaro o scuro) così si confonde con essa. Tocchi → minigioco o blocco; la ricerca resta intatta. I banner vengono riusati e si spostano con lo scroll, così reagiscono subito. |
 | **Impara i siti** | Se titolo o snippet di un risultato contiene porn/porno/xxx/hentai…, il dominio va in blacklist da solo. Nessuno scraping dei motori di ricerca: usa solo i risultati che hai davanti. |
 | **Protezioni (stile AppBlock)** | Con le protezioni armate: Impostazioni › App › Gwackamole, il dialogo di disinstallazione e la pagina Accessibilità ti riportano alla Home. Ogni modifica che allenta le regole parte dopo il cooldown (default 24 h). |
 | **Device Owner** | Blocca disinstallazione, arresto forzato e modalità provvisoria; opzionale anche il debug USB. |

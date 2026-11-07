@@ -58,7 +58,7 @@ class MoleGameActivity : Activity() {
         }
         val loseText = if (reason == Reason.TEST) "Riprova" else "Blocco $lockMin min"
 
-        val view = MoleGameView(this, seed, diff, "${reason.title} · $label", winText, loseText) { won ->
+        val view = MoleGameView(this, seed, diff, "${reason.title} · $label", winText, loseText, Store.randomText()) { won ->
             finishedRound = true
             Guardian.onGameResult(applicationContext, target, reason, won)
             if (lockTask) runCatching { stopLockTask() }

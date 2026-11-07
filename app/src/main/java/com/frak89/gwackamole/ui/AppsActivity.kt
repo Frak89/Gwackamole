@@ -73,7 +73,8 @@ class AppsActivity : Activity() {
             val bonus = Store.bonusToday(a.pkg)
             t.addView(TextView(this).apply {
                 text = "${rule.limitMin} min/giorno" + (if (bonus > 0) " +$bonus vinti" else "") +
-                    " · usati $usedMin · tolleranza ${rule.graceSec}s" + if (rule.randomChecks) " · talpe a sorpresa" else ""
+                    " · usati $usedMin · tolleranza ${rule.graceSec}s" + (if (rule.randomChecks) " · a sorpresa" else "") +
+                    when (Store.modeFor(a.pkg)) { "kick" -> " · uscita forzata"; else -> " · talpe" }
                 textSize = 12f; setTextColor(C.MUTED)
             })
         }
@@ -95,13 +96,19 @@ class AppsActivity : Activity() {
         var grace = old?.graceSec ?: 3
         box.sliderRow("Secondi prima del minigioco", 0, 10, grace, { "$it s" }) { grace = it }
         var random = old?.randomChecks ?: true
-        box.switchRow("Talpe a sorpresa durante l'uso", random) { random = it }
+        box.switchRow("Controlli a sorpresa durante l'uso", random) { random = it }
+        var mode = old?.mode ?: "default"
+        box.choiceRow("Quando il tempo finisce", listOf(
+            "default" to "Come l'impostazione generale",
+            "moles" to "Talpe (minigioco)",
+            "kick" to "Uscita forzata + blocco ${Store.kickLockSec / 60.0} min".replace(".0 min", " min"),
+        ), mode) { mode = it }
 
         val dlg = AlertDialog.Builder(this).setTitle(a.label).setView(box)
             .setPositiveButton("Salva") { _, _ ->
-                val nr = AppRule(a.pkg, a.label, limits[np.value], grace, random)
+                val nr = AppRule(a.pkg, a.label, limits[np.value], grace, random, mode)
                 val looser = old != null && (nr.limitMin > old.limitMin || nr.graceSec > old.graceSec ||
-                    (old.randomChecks && !nr.randomChecks))
+                    (old.randomChecks && !nr.randomChecks) || old.mode != nr.mode)
                 report(PendingApplier.request(this, "rule", nr.toJson().toString(),
                     "${a.label}: ${nr.limitMin} min, ${nr.graceSec}s", looser))
                 render()

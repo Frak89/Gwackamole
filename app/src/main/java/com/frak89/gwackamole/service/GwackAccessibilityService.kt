@@ -35,6 +35,7 @@ class GwackAccessibilityService : AccessibilityService(), GuardianHost {
 
     private val h = Handler(Looper.getMainLooper())
     private lateinit var overlay: MoleOverlay
+    private lateinit var shield: Shield
     private var imePkgs: Set<String> = emptySet()
     private var browsers: Set<String> = emptySet()
     private var launcherPkgs: Set<String> = emptySet()
@@ -54,6 +55,7 @@ class GwackAccessibilityService : AccessibilityService(), GuardianHost {
         super.onServiceConnected()
         Store.init(this); EventLog.init(this); Blocklist.init(this)
         overlay = MoleOverlay(this)
+        shield = Shield(this)
         refreshPackageSets()
         Guardian.attach(this)
         registerReceiver(screenReceiver, IntentFilter().apply {
@@ -64,6 +66,7 @@ class GwackAccessibilityService : AccessibilityService(), GuardianHost {
     override fun onUnbind(intent: Intent?): Boolean {
         try { unregisterReceiver(screenReceiver) } catch (_: Exception) { }
         overlay.clear()
+        shield.hide()
         Guardian.detach()
         return super.onUnbind(intent)
     }
@@ -90,6 +93,52 @@ class GwackAccessibilityService : AccessibilityService(), GuardianHost {
         else performGlobalAction(GLOBAL_ACTION_BACK)
     }
 
+    /**
+     * Cancella dalla cronologia le voci del dominio bloccato. Funziona sui browser Chromium
+     * (Chrome, Brave, Edge, Kiwi, Vivaldi…): apre chrome://history filtrata per il dominio tramite
+     * la barra indirizzi e tocca i pulsanti "Elimina/Remove" trovati. Durante l'operazione uno
+     * scudo opaco copre lo schermo, così non si vede la pagina della cronologia.
+     */
+    override fun cleanHistory(browserPkg: String, domain: String) {
+        if (Build.VERSION.SDK_INT < 30 || browserPkg !in CHROMIUM) return
+        overlay.clear()
+        shield.show("Pulizia della cronologia…")
+        val root = rootInActiveWindow ?: run { shield.hide(); return }
+        val urlNode = findUrlNode(root, browserPkg) ?: run { shield.hide(); return }
+        // scrivi l'indirizzo della cronologia filtrata e invia
+        val args = android.os.Bundle().apply {
+            putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, "chrome://history/?q=$domain")
+        }
+        urlNode.performAction(AccessibilityNodeInfo.ACTION_FOCUS)
+        if (!urlNode.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)) { shield.hide(); return }
+        h.postDelayed({
+            rootInActiveWindow?.let { r ->
+                findUrlNode(r, browserPkg)?.performAction(
+                    AccessibilityNodeInfo.AccessibilityAction.ACTION_IME_ENTER.id)
+            }
+        }, 150)
+        // dopo il caricamento, tocca i pulsanti di eliminazione per qualche passata
+        historyPasses(browserPkg, 0)
+    }
+
+    private fun historyPasses(browserPkg: String, pass: Int) {
+        h.postDelayed({
+            val r = rootInActiveWindow
+            if (r == null || r.packageName?.toString() != browserPkg || pass >= 6) { shield.hide(); return@postDelayed }
+            var clicked = 0
+            for (n in bfs(r, 1500)) {
+                if (!n.isClickable) continue
+                val desc = (n.contentDescription ?: n.text)?.toString()?.lowercase(Locale.ROOT) ?: continue
+                if (HISTORY_DELETE_WORDS.any { desc.contains(it) }) {
+                    if (n.performAction(AccessibilityNodeInfo.ACTION_CLICK)) clicked++
+                    if (clicked >= 4) break
+                }
+            }
+            if (clicked > 0) historyPasses(browserPkg, pass + 1)
+            else { EventLog.log("HISTORY_CLEAN", browserPkg); shield.hide() }
+        }, if (pass == 0) 700 else 350)
+    }
+
     // ------------------------------------------------------------------ eventi
 
     override fun onAccessibilityEvent(e: AccessibilityEvent) {
@@ -104,7 +153,12 @@ class GwackAccessibilityService : AccessibilityService(), GuardianHost {
                 onContent(pkg)
             }
             AccessibilityEvent.TYPE_VIEW_SCROLLED -> {
-                if (pkg in browsers) { overlay.clear(); scheduleBrowserScan(pkg, 280) }
+                if (pkg in browsers) {
+                    // sposta subito i banner col dito, poi riscansiona con un attimo di ritardo
+                    val dy = e.scrollDeltaY
+                    if (dy != 0 && dy != Int.MIN_VALUE) overlay.shift(-dy)
+                    scheduleBrowserScan(pkg, 120)
+                }
             }
             AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED,
             AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED,
@@ -114,7 +168,7 @@ class GwackAccessibilityService : AccessibilityService(), GuardianHost {
 
     private fun onContent(pkg: String) {
         if (pkg in SETTINGS_PKGS || pkg in launcherPkgs) scheduleSettingsCheck()
-        if (pkg in browsers) scheduleBrowserScan(pkg, 350)
+        if (pkg in browsers) scheduleBrowserScan(pkg, 120)
     }
 
     // ------------------------------------------------------------------ protezione impostazioni
@@ -128,14 +182,22 @@ class GwackAccessibilityService : AccessibilityService(), GuardianHost {
     private fun checkSettings() {
         val root = rootInActiveWindow ?: return
         val rootPkg = root.packageName?.toString() ?: return
-        val texts = collectTexts(root, 700)
-        val joined = texts.joinToString(" \u0001 ").lowercase(Locale.ROOT)
         val label = APP_LABEL.lowercase(Locale.ROOT)
-        if (!joined.contains(label)) return
 
+        // Il nome dell'app deve comparire come titolo/voce a sé (non solo citato in mezzo al testo):
+        // così si capisce di essere davvero sulla pagina DI Gwackamole, non in impostazioni qualsiasi.
+        val onOurPage = bfs(root, 900).any { n ->
+            val t = n.text?.toString()?.trim()?.lowercase(Locale.ROOT)
+            t == label || (t != null && t.startsWith(label) && t.length < label.length + 18)
+        }
+        if (!onOurPage) return
+
+        val joined = collectTexts(root, 700).joinToString(" \u0001 ").lowercase(Locale.ROOT)
         val isInstaller = rootPkg.contains("packageinstaller") || rootPkg.contains("permissioncontroller")
         val danger = DANGER_WORDS.firstOrNull { joined.contains(it) }
         val launcherUninstall = rootPkg in launcherPkgs && (joined.contains("disinstalla") || joined.contains("uninstall"))
+        // Nelle impostazioni serve anche un'azione pericolosa in pagina (disinstalla, forza arresto,
+        // disattiva accessibilità/admin...): la sola pagina Info app non viene interrotta.
         if (isInstaller || launcherUninstall || (rootPkg in SETTINGS_PKGS && danger != null)) {
             Guardian.onBypassAttempt("$rootPkg: ${danger ?: "installer"}")
         }
@@ -260,15 +322,33 @@ class GwackAccessibilityService : AccessibilityService(), GuardianHost {
             "com.samsung.android.lool", "com.samsung.android.sm.devicesecurity",
         )
 
-        /** Parole che, insieme a "Gwackamole", indicano una pagina pericolosa. */
+        /**
+         * Azioni che compaiono solo sulla pagina di gestione DI un'app (Info app, Accessibilità,
+         * Amministratori dispositivo): servono per distinguere "sto guardando Gwackamole" da
+         * "sto per disinstallarlo / fermarlo / togliergli i permessi". Niente parole generiche
+         * come batteria, archiviazione o consenti, che comparirebbero anche in pagine innocue.
+         */
         val DANGER_WORDS = listOf(
             "disinstalla", "uninstall", "forza interruzione", "forza arresto", "termina", "force stop",
             "disattiva", "disable", "cancella dati", "cancella memoria", "svuota", "clear data", "clear storage",
-            "amministratore", "admin", "usa gwackamole", "use gwackamole", "scorciatoia", "shortcut",
-            "consenti", "allow", "permetti", "autorizza", "ottimizza", "optimi",
+            "amministratore", "device admin", "usa gwackamole", "use gwackamole", "disattiva servizio",
+            "turn off", "arresto forzato", "rimuovi", "remove",
         )
 
         val SERP_TITLES = listOf("Cerca con Google", "Google Search", "- Bing", "at DuckDuckGo", "su DuckDuckGo", "Ricerca Google")
+
+        /** Browser Chromium su cui chrome://history funziona. */
+        val CHROMIUM = setOf(
+            "com.android.chrome", "com.chrome.beta", "com.chrome.dev", "com.brave.browser",
+            "com.microsoft.emmx", "com.vivaldi.browser", "com.kiwibrowser.browser",
+            "com.mi.globalbrowser", "com.yandex.browser", "com.opera.browser",
+        )
+
+        /** Testo dei pulsanti che eliminano una voce dalla cronologia. */
+        val HISTORY_DELETE_WORDS = listOf(
+            "elimina dalla cronologia", "rimuovi dalla cronologia", "remove from history",
+            "delete from history", "elimina", "rimuovi", "delete", "remove",
+        )
 
         val URL_BAR_IDS = mapOf(
             "com.android.chrome" to listOf("com.android.chrome:id/url_bar"),
@@ -291,5 +371,39 @@ class GwackAccessibilityService : AccessibilityService(), GuardianHost {
             "com.mi.globalbrowser" to listOf("com.mi.globalbrowser:id/url"),
             "com.yandex.browser" to listOf("com.yandex.browser:id/bro_omnibar_address_title_text"),
         )
+    }
+}
+
+/** Schermo opaco a tutto campo mostrato mentre si pulisce la cronologia. */
+private class Shield(private val ctx: Context) {
+    private val wm = ctx.getSystemService(Context.WINDOW_SERVICE) as android.view.WindowManager
+    private var view: android.view.View? = null
+
+    fun show(message: String) {
+        if (view != null) return
+        val dark = (ctx.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
+            android.content.res.Configuration.UI_MODE_NIGHT_YES
+        val tv = android.widget.TextView(ctx).apply {
+            text = message
+            gravity = android.view.Gravity.CENTER
+            textSize = 16f
+            setTextColor(if (dark) 0xFFB0B0B0.toInt() else 0xFF5C4D3D.toInt())
+            setBackgroundColor(if (dark) 0xFF1F1F1F.toInt() else 0xFFF7F1E3.toInt())
+        }
+        val lp = android.view.WindowManager.LayoutParams(
+            android.view.WindowManager.LayoutParams.MATCH_PARENT,
+            android.view.WindowManager.LayoutParams.MATCH_PARENT,
+            android.view.WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+            android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                android.view.WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                android.view.WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            android.graphics.PixelFormat.OPAQUE,
+        ).apply { windowAnimations = 0 }
+        try { wm.addView(tv, lp); view = tv } catch (_: Exception) { }
+    }
+
+    fun hide() {
+        view?.let { try { wm.removeView(it) } catch (_: Exception) { } }
+        view = null
     }
 }

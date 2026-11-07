@@ -31,6 +31,8 @@ interface GuardianHost {
     fun goHome()
     fun goBack()
     fun dismissShade()
+    /** Cancella dalla cronologia del browser le voci del dominio appena bloccato (best-effort, browser Chromium). */
+    fun cleanHistory(browserPkg: String, domain: String)
 }
 
 /**
@@ -157,11 +159,16 @@ object Guardian {
         if ((recentlyHandled[key] ?: 0) > now - 4_000) return
         recentlyHandled[key] = now
         h.postDelayed({
-            // dopo la tolleranza, se sei ancora lì: indietro e talpe
+            // dopo la tolleranza, se sei ancora lì: pulisci la cronologia, poi indietro e blocco
             if (fgPkg == browserPkg && currentHost?.endsWith(site) == true && !gameActive) {
-                host?.goBack()
                 EventLog.log("SITE_BLOCK", key)
-                requestGame(key, site, reason)
+                if (Store.cleanHistory) {
+                    host?.cleanHistory(browserPkg, site)
+                    h.postDelayed({ host?.goBack(); requestGame(key, site, reason) }, 1_600)
+                } else {
+                    host?.goBack()
+                    requestGame(key, site, reason)
+                }
             }
         }, graceSec * 1000L + 50)
     }
@@ -173,19 +180,24 @@ object Guardian {
         requestGame("site:$domainOrLabel", domainOrLabel, Reason.ADULT_LINK)
     }
 
-    /** Il servizio ha visto Impostazioni › Gwackamole, il dialogo di disinstallazione, ecc. */
+    /**
+     * Il servizio ha visto la pagina di gestione DI Gwackamole (Info app, disinstalla, forza
+     * arresto, togli accessibilità/admin). Il blocco qui è: chiudere di forza le impostazioni e
+     * mostrare un testo. Niente minigioco: serve solo a non farsi disattivare.
+     */
     fun onBypassAttempt(what: String) {
         if (!Store.armed) return
         val now = System.currentTimeMillis()
         if ((recentlyHandled["bypass"] ?: 0) > now - 1_500) return
         recentlyHandled["bypass"] = now
+        // chiusura forzata delle impostazioni
         host?.goHome()
         EventLog.log("BYPASS", what)
         val n = Store.incBypass()
         val c = ctx ?: return
+        // testo che compare
         c.startActivity(Intent(c, GuardActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             .putExtra("what", what).putExtra("count", n))
-        if (n >= 3) h.postDelayed({ requestGame("bypass", "Gwackamole", Reason.BYPASS) }, 1_800)
     }
 
     // ------------------------------------------------------------------ controlli periodici
@@ -269,6 +281,7 @@ object Guardian {
     fun requestGame(target: String, label: String, reason: Reason) {
         val c = ctx ?: return
         if (gameActive) return
+        if (Store.modeFor(target) == "kick") { kick(c, target, reason); return }
         val seed = seedFor(target, reason)
         launchGame(c, target, label, reason, seed, difficultyFor(target))
     }
@@ -315,10 +328,30 @@ object Guardian {
         }
     }
 
+    /**
+     * Alternativa alle talpe: uscita forzata dall'app e telefono bloccato per poco (default 1 minuto),
+     * senza minigioco. Sul banner di un link coperto la ricerca resta dov'è: si blocca solo il telefono.
+     */
+    fun kick(c: Context, target: String, reason: Reason) {
+        val now = System.currentTimeMillis()
+        if ((recentlyHandled["kick"] ?: 0) > now - 2_000) return
+        recentlyHandled["kick"] = now
+        Store.incAttempts(target)
+        EventLog.log("KICK", target, reason.ordinal.toLong())
+        if (reason != Reason.ADULT_LINK) host?.goHome()
+        Store.lockKind = "kick"
+        Store.lockUntil = now + Store.kickLockSec * 1000L
+        h.postDelayed({
+            c.startActivity(Intent(c, LockActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        }, 150)
+        h.postDelayed({ Protection.lockNow(c) }, 700)
+    }
+
     /** Le talpe hanno vinto: schermo spento, telefono bloccato, conto alla rovescia. */
     fun punish(c: Context) {
         val minutes = Store.lockBaseMinutes + Store.lockStepMinutes * Store.lossesToday()
         Store.incLosses()
+        Store.lockKind = "moles"
         Store.lockUntil = System.currentTimeMillis() + minutes * 60_000L
         c.startActivity(Intent(c, LockActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         h.postDelayed({ Protection.lockNow(c) }, 600)

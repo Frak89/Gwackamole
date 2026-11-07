@@ -16,15 +16,18 @@ data class AppRule(
     val graceSec: Int,
     /** Talpe a sorpresa durante l'uso. */
     val randomChecks: Boolean,
+    /** "default" = segue l'impostazione generale, "moles" = minigioco, "kick" = uscita forzata + blocco. */
+    val mode: String = "default",
 ) {
     fun toJson(): JSONObject = JSONObject()
         .put("pkg", pkg).put("label", label).put("limit", limitMin)
-        .put("grace", graceSec).put("random", randomChecks)
+        .put("grace", graceSec).put("random", randomChecks).put("mode", mode)
 
     companion object {
         fun fromJson(o: JSONObject) = AppRule(
             o.getString("pkg"), o.optString("label", o.getString("pkg")),
             o.optInt("limit", 30), o.optInt("grace", 3), o.optBoolean("random", false),
+            o.optString("mode", "default"),
         )
     }
 }
@@ -84,6 +87,53 @@ object Store {
         get() = sp.getInt("screen_limit", 45)
         set(v) = sp.edit().putInt("screen_limit", v).apply()
 
+    /** Modalità generale: "moles" (minigioco) oppure "kick" (uscita forzata + blocco breve, niente gioco). */
+    var punishMode: String
+        get() = sp.getString("punish_mode", "moles") ?: "moles"
+        set(v) = sp.edit().putString("punish_mode", v).apply()
+
+    /** Durata del blocco in modalità uscita forzata, in secondi (default 1 minuto). */
+    var kickLockSec: Int
+        get() = sp.getInt("kick_lock_s", 60)
+        set(v) = sp.edit().putInt("kick_lock_s", v).apply()
+
+    /** Modalità effettiva per un obiettivo (pacchetto app o "site:dominio"). */
+    fun modeFor(target: String): String {
+        val m = rules()[target]?.mode ?: "default"
+        return if (m == "default") punishMode else m
+    }
+
+    // ---------- Testi personalizzati ----------
+    val DEFAULT_TEXTS = listOf(
+        "Cosa stavi per fare prima di aprire questa app?",
+        "Dieci minuti di scroll non ti ridanno dieci minuti.",
+        "Alzati, bevi un bicchiere d'acqua, poi decidi.",
+        "Sei tu a usare il telefono, o il contrario?",
+        "La cosa difficile che stai evitando è ancora lì.",
+    )
+
+    fun customTexts(): List<String> {
+        val raw = sp.getString("custom_texts", null) ?: return DEFAULT_TEXTS
+        val arr = JSONArray(raw)
+        return (0 until arr.length()).map { arr.getString(it) }
+    }
+
+    fun setCustomTexts(l: List<String>) {
+        val arr = JSONArray()
+        l.forEach { arr.put(it) }
+        sp.edit().putString("custom_texts", arr.toString()).apply()
+    }
+
+    /** Un testo a caso, diverso dall'ultimo mostrato quando possibile. */
+    fun randomText(): String? {
+        val l = customTexts()
+        if (l.isEmpty()) return null
+        val last = sp.getString("last_text", null)
+        val pick = l.filter { it != last }.ifEmpty { l }.random()
+        sp.edit().putString("last_text", pick).apply()
+        return pick
+    }
+
     var randomChecks: Boolean
         get() = sp.getBoolean("random_checks", true)
         set(v) = sp.edit().putBoolean("random_checks", v).apply()
@@ -95,6 +145,11 @@ object Store {
     var serpCover: Boolean
         get() = sp.getBoolean("serp_cover", true)
         set(v) = sp.edit().putBoolean("serp_cover", v).apply()
+
+    /** Cancella dalla cronologia del browser la pagina bloccata (browser Chromium). */
+    var cleanHistory: Boolean
+        get() = sp.getBoolean("clean_history", true)
+        set(v) = sp.edit().putBoolean("clean_history", v).apply()
 
     var cooldownHours: Int
         get() = sp.getInt("cooldown_h", 24)
@@ -164,6 +219,11 @@ object Store {
         set(v) = sp.edit().putLong("lock_until", v).apply()
 
     fun isLocked(now: Long = System.currentTimeMillis()) = lockUntil > now
+
+    /** Perché il telefono è bloccato: "moles" (hanno vinto le talpe) o "kick" (uscita forzata). */
+    var lockKind: String
+        get() = sp.getString("lock_kind", "moles") ?: "moles"
+        set(v) = sp.edit().putString("lock_kind", v).apply()
 
     /** Permessi temporanei per siti dell'utente vinti al minigioco. */
     fun siteAllowedUntil(host: String): Long = sp.getLong("allow_$host", 0)

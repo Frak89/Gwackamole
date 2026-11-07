@@ -23,7 +23,8 @@ class GuardActivity : Activity() {
             eyebrow("Vuoi davvero cambiare le regole?")
             body("Apri Gwackamole › Disattiva protezioni. La richiesta parte dopo ${Store.cooldownHours} ore e puoi annullarla quando vuoi.")
         }
-        if (count >= 3) col.body("Terzo tentativo: arrivano le talpe.", C.ORANGE, 15f)
+        Store.randomText()?.let { col.body("“$it”", C.GREEN, 17f) }
+        if (count >= 3) col.body("$count tentativi oggi. Le talpe non mollano.", C.ORANGE, 15f)
         col.button("Torna alla Home") { goHome() }
         col.button("Apri Gwackamole", primary = false) {
             startActivity(Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); finish()

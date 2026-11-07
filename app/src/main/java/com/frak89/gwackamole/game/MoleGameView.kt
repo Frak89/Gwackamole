@@ -33,6 +33,7 @@ class MoleGameView(
     private val subtitle: String,
     private val winText: String,
     private val loseText: String,
+    private val quote: String?,
     private val onEnd: (Boolean) -> Unit,
 ) : View(ctx) {
 
@@ -386,6 +387,26 @@ class MoleGameView(
         text.color = 0xFFC2410C.toInt(); text.textSize = 96 * d
         c.drawText("${max(1, n)}", w / 2, h * 0.62f, text)
         MolePainter.draw(c, w / 2 - 50 * d, h * 0.68f, 100 * d, 110 * d, MolePainter.Mood.SMUG)
+        quoteLayout(w)?.let { l ->
+            c.save()
+            c.translate(w / 2 - l.width / 2f, h * 0.68f + 120 * d)
+            l.draw(c)
+            c.restore()
+        }
+    }
+
+    private var quoteCache: android.text.StaticLayout? = null
+    private fun quoteLayout(w: Float): android.text.StaticLayout? {
+        val q = quote ?: return null
+        quoteCache?.let { return it }
+        val tp = android.text.TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = 0xFF2F4A17.toInt(); textSize = 16 * d
+            typeface = Typeface.create(Typeface.SERIF, Typeface.ITALIC)
+        }
+        val width = (w - 56 * d).toInt().coerceAtLeast(100)
+        return android.text.StaticLayout.Builder.obtain("“$q”", 0, q.length + 2, tp, width)
+            .setAlignment(android.text.Layout.Alignment.ALIGN_CENTER).setMaxLines(3)
+            .setEllipsize(android.text.TextUtils.TruncateAt.END).build().also { quoteCache = it }
     }
 
     private fun drawEnd(c: Canvas, w: Float, h: Float, now: Long) {
