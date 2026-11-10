@@ -20,10 +20,8 @@ import android.view.ViewGroup
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
-import com.frak89.gwackamole.core.Guardian
 import com.frak89.gwackamole.core.PendingApplier
 import com.frak89.gwackamole.core.Protection
-import com.frak89.gwackamole.core.Reason
 import com.frak89.gwackamole.core.UsageTracker
 import com.frak89.gwackamole.data.Store
 import com.frak89.gwackamole.service.GwackAccessibilityService
@@ -98,6 +96,17 @@ class MainActivity : Activity() {
         col.body("Quando arriva una distrazione l'app si chiude e il telefono va in pausa per un po'. Nessun gioco, nessuna scorciatoia.")
         col.gap(16)
 
+        // Avviso ben visibile se il servizio è spento: senza, niente protezioni né blocchi.
+        if (!accessibilityOn()) {
+            val warn = col.card {
+                eyebrow("⚠ Servizio spento")
+                body("L'Accessibilità di Nero Block è disattivata: le protezioni e i blocchi non funzionano. " +
+                    "Riaccendila (reinstallando l'app Android la spegne).", C.INK)
+                button("Attiva l'Accessibilità") { perms().first().action() }
+            }
+            warn.background = rounded(0xFF2A0F2A.toInt(), dp(18).toFloat(), dp(1), C.ORANGE)
+        }
+
         val list = perms()
         val done = list.count { it.ok() }
         col.card {
@@ -123,9 +132,7 @@ class MainActivity : Activity() {
         col.button("Siti web e filtro adulti") { startActivity(Intent(this, SitesActivity::class.java)) }
         col.button("Regole, blocco e cooldown") { startActivity(Intent(this, RulesActivity::class.java)) }
         col.button("Analisi del comportamento", primary = false) { startActivity(Intent(this, StatsActivity::class.java)) }
-        col.button("Prova il blocco", primary = false) {
-            Guardian.block("test", "Prova", Reason.TEST)
-        }
+        col.button("Prova il blocco", primary = false) { testBlock() }
     }
 
     private fun permRow(parent: LinearLayout, n: Int, p: Perm) {
@@ -153,6 +160,15 @@ class MainActivity : Activity() {
             row.addView(b, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(44)))
         }
         parent.addView(row)
+    }
+
+    /** Prova del blocco indipendente dal servizio: parte comunque, così vedi se lo schermo si spegne. */
+    private fun testBlock() {
+        Store.lockMessage = "Prova del blocco: così si presenta la pausa."
+        Store.lockUntil = System.currentTimeMillis() + Store.kickLockSec * 1000L
+        startActivity(Intent(this, LockActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        if (Protection.isAdmin(this)) Protection.lockNow(this)
+        else toast("Schermata di pausa ok. Per spegnere lo schermo serve l'Amministratore dispositivo.")
     }
 
     private fun arm() {

@@ -43,7 +43,9 @@ interface GuardianHost {
 object Guardian {
     private val h = Handler(Looper.getMainLooper())
     private var host: GuardianHost? = null
-    private val ctx: Context? get() = host?.context
+    /** Contesto di riserva (applicazione) quando il servizio non è attaccato. */
+    @Volatile var appContext: Context? = null
+    private val ctx: Context? get() = host?.context ?: appContext
 
     // stato corrente
     @Volatile var fgPkg: String? = null; private set
