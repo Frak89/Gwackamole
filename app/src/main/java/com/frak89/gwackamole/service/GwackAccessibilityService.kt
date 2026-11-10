@@ -44,25 +44,30 @@ class GwackAccessibilityService : AccessibilityService(), GuardianHost {
 
     private val screenReceiver = object : BroadcastReceiver() {
         override fun onReceive(c: Context, i: Intent) {
-            when (i.action) {
-                Intent.ACTION_SCREEN_ON -> Guardian.onScreen(true)
-                Intent.ACTION_SCREEN_OFF -> { Guardian.onScreen(false); overlay.clear() }
-                Intent.ACTION_USER_PRESENT -> Guardian.onUnlock()
-            }
+            try {
+                when (i.action) {
+                    Intent.ACTION_SCREEN_ON -> Guardian.onScreen(true)
+                    Intent.ACTION_SCREEN_OFF -> { Guardian.onScreen(false); overlay.clear() }
+                    Intent.ACTION_USER_PRESENT -> Guardian.onUnlock()
+                }
+            } catch (_: Throwable) { }
         }
     }
 
     override fun onServiceConnected() {
         super.onServiceConnected()
-        Store.init(this); EventLog.init(this); Blocklist.init(this)
+        // Tutto in try/catch: un errore qui farebbe segnare il servizio come "malfunzionante".
+        try { Store.init(this); EventLog.init(this); Blocklist.init(this) } catch (_: Throwable) { }
         overlay = BlockOverlay(this)
         shield = Shield(this)
-        refreshPackageSets()
-        Guardian.attach(this)
-        registerReceiver(screenReceiver, IntentFilter().apply {
-            addAction(Intent.ACTION_SCREEN_ON); addAction(Intent.ACTION_SCREEN_OFF)
-            addAction(Intent.ACTION_USER_PRESENT)
-        })
+        try { refreshPackageSets() } catch (_: Throwable) { }
+        try {
+            registerReceiver(screenReceiver, IntentFilter().apply {
+                addAction(Intent.ACTION_SCREEN_ON); addAction(Intent.ACTION_SCREEN_OFF)
+                addAction(Intent.ACTION_USER_PRESENT)
+            })
+        } catch (_: Throwable) { }
+        try { Guardian.attach(this) } catch (_: Throwable) { }
     }
 
     override fun onUnbind(intent: Intent?): Boolean {
@@ -125,7 +130,7 @@ class GwackAccessibilityService : AccessibilityService(), GuardianHost {
 
     private fun historyPasses(browserPkg: String, pass: Int) {
         h.postDelayed({
-            val r = rootInActiveWindow
+            val r = try { rootInActiveWindow } catch (_: Throwable) { null }
             if (r == null || r.packageName?.toString() != browserPkg || pass >= 6) { shield.hide(); return@postDelayed }
             var clicked = 0
             for (n in bfs(r, 1500)) {
@@ -144,6 +149,10 @@ class GwackAccessibilityService : AccessibilityService(), GuardianHost {
     // ------------------------------------------------------------------ eventi
 
     override fun onAccessibilityEvent(e: AccessibilityEvent) {
+        try { handleEvent(e) } catch (_: Throwable) { /* mai far cadere il servizio per un evento */ }
+    }
+
+    private fun handleEvent(e: AccessibilityEvent) {
         val pkg = e.packageName?.toString() ?: return
         when (e.eventType) {
             AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> {
@@ -157,8 +166,12 @@ class GwackAccessibilityService : AccessibilityService(), GuardianHost {
             AccessibilityEvent.TYPE_VIEW_SCROLLED -> {
                 if (pkg in browsers) {
                     // sposta subito i banner col dito, poi riscansiona con un attimo di ritardo
-                    val dy = e.scrollDeltaY
-                    if (dy != 0 && dy != Int.MIN_VALUE) overlay.shift(-dy)
+                    if (Build.VERSION.SDK_INT >= 28) {
+                        val dy = e.scrollDeltaY
+                        if (dy != 0 && dy != Int.MIN_VALUE) overlay.shift(-dy)
+                    } else {
+                        overlay.clear()
+                    }
                     scheduleBrowserScan(pkg, 120)
                 }
             }
@@ -178,7 +191,7 @@ class GwackAccessibilityService : AccessibilityService(), GuardianHost {
     private fun scheduleSettingsCheck() {
         if (settingsCheckPending || !Store.armed) return
         settingsCheckPending = true
-        h.postDelayed({ settingsCheckPending = false; checkSettings() }, 250)
+        h.postDelayed({ settingsCheckPending = false; try { checkSettings() } catch (_: Throwable) { } }, 250)
     }
 
     private fun checkSettings() {
@@ -213,10 +226,12 @@ class GwackAccessibilityService : AccessibilityService(), GuardianHost {
         h.postDelayed(browserScan, delay)
     }
 
-    private val browserScan = Runnable {
-        val pkg = scanPkg ?: return@Runnable
-        val root = rootInActiveWindow ?: return@Runnable
-        if (root.packageName?.toString() != pkg) return@Runnable
+    private val browserScan = Runnable { try { runBrowserScan() } catch (_: Throwable) { } }
+
+    private fun runBrowserScan() {
+        val pkg = scanPkg ?: return
+        val root = rootInActiveWindow ?: return
+        if (root.packageName?.toString() != pkg) return
 
         val urlNode = findUrlNode(root, pkg)
         val urlText = urlNode?.text?.toString()

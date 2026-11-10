@@ -70,16 +70,17 @@ object Guardian {
 
     private val tickRunnable = object : Runnable {
         override fun run() {
-            tick()
+            try { tick() } catch (_: Throwable) { /* un errore non deve mai fermare il guardiano */ }
             h.postDelayed(this, 5_000)
         }
     }
 
     fun attach(host: GuardianHost) {
         this.host = host
+        appContext = host.context.applicationContext
         h.removeCallbacks(tickRunnable)
-        h.post(tickRunnable)
-        Protection.apply(host.context)
+        h.postDelayed(tickRunnable, 1_500) // lascia finire l'aggancio del servizio prima del primo giro
+        try { Protection.apply(host.context) } catch (_: Throwable) { }
     }
 
     fun detach() {
