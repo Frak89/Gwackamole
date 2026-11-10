@@ -21,20 +21,26 @@ object Neon {
 
     @Suppress("DEPRECATION")
     fun immersive(a: Activity) {
-        a.window.statusBarColor = BG
-        a.window.navigationBarColor = BG
-        if (Build.VERSION.SDK_INT >= 30) {
-            a.window.setDecorFitsSystemWindows(false)
-            a.window.insetsController?.let {
-                it.hide(WindowInsets.Type.statusBars() or WindowInsets.Type.navigationBars())
-                it.systemBarsBehavior = WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        // Mai far cadere l'activity per lo stile: lo schermo intero è un extra, non è vitale.
+        try {
+            a.window.statusBarColor = BG
+            a.window.navigationBarColor = BG
+            // Forza la creazione della decor view PRIMA di toccare l'insets controller:
+            // chiedere window.insetsController troppo presto dava NullPointerException.
+            val decor = a.window.decorView
+            if (Build.VERSION.SDK_INT >= 30) {
+                a.window.setDecorFitsSystemWindows(false)
+                decor.windowInsetsController?.let {
+                    it.hide(WindowInsets.Type.statusBars() or WindowInsets.Type.navigationBars())
+                    it.systemBarsBehavior = WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                }
+            } else {
+                decor.systemUiVisibility = (View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                    or View.SYSTEM_UI_FLAG_FULLSCREEN or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                    or View.SYSTEM_UI_FLAG_LAYOUT_STABLE or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                    or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION)
             }
-        } else {
-            a.window.decorView.systemUiVisibility = (View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-                or View.SYSTEM_UI_FLAG_FULLSCREEN or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                or View.SYSTEM_UI_FLAG_LAYOUT_STABLE or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION)
-        }
+        } catch (_: Throwable) { }
     }
 
     /** Pulsante pieno con gradiente viola→blu. */

@@ -34,7 +34,9 @@ class UsageReportActivity : Activity() {
         super.onCreate(savedInstanceState)
         Store.init(this)
         Neon.immersive(this)
-        render()
+        try { render() } catch (e: Throwable) {
+            com.frak89.gwackamole.data.CrashLog.note("report", e); finish()
+        }
     }
 
     private fun render() {
