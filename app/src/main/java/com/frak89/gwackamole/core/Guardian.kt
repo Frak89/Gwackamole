@@ -88,6 +88,10 @@ object Guardian {
         host = null
     }
 
+    /** true se il servizio di accessibilità è davvero agganciato (non solo "attivo" nelle impostazioni). */
+    fun isAttached(): Boolean = host != null
+    fun foreground(): String? = fgPkg
+
     private fun own(pkg: String) = ctx?.packageName == pkg
 
     private fun dialerPkg(): String? = try {

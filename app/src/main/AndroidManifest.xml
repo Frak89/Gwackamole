@@ -33,6 +33,7 @@
         </activity>
 
         <activity android:name=".ui.AppsActivity" android:exported="false" />
+        <activity android:name=".ui.DiagnosticsActivity" android:exported="false" />
         <activity android:name=".ui.SitesActivity" android:exported="false" />
         <activity android:name=".ui.StatsActivity" android:exported="false" />
         <activity android:name=".ui.RulesActivity" android:exported="false" />

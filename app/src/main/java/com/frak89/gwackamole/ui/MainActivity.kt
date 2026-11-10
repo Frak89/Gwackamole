@@ -147,6 +147,7 @@ class MainActivity : Activity() {
         col.button("Regole, blocco e cooldown") { startActivity(Intent(this, RulesActivity::class.java)) }
         col.button("Analisi del comportamento", primary = false) { startActivity(Intent(this, StatsActivity::class.java)) }
         col.button("Prova il blocco", primary = false) { testBlock() }
+        col.button("Diagnostica (da inviare)", primary = false) { startActivity(Intent(this, DiagnosticsActivity::class.java)) }
     }
 
     private fun permRow(parent: LinearLayout, n: Int, p: Perm) {
