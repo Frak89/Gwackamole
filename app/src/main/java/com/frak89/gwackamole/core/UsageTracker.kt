@@ -50,10 +50,36 @@ object UsageTracker {
         return total
     }
 
-    /** Minuti rimasti oggi per una regola (limite + bonus vinti − usati). */
+    /** Minuti rimasti oggi per una regola (limite − usati). */
     fun remainingMs(ctx: Context, pkg: String): Long {
         val rule = Store.rules()[pkg] ?: return Long.MAX_VALUE
         val allowed = rule.limitMin * 60_000L
         return allowed - usedTodayMs(ctx, pkg)
+    }
+
+    /** Tempo in primo piano di oggi per ogni app (escluse Nero Block, launcher e UI di sistema). */
+    fun todayByApp(ctx: Context): Map<String, Long> {
+        if (!hasPermission(ctx)) return emptyMap()
+        val skip = setOf("android", ctx.packageName)
+        return foregroundTimes(ctx, startOfDay(), System.currentTimeMillis())
+            .filterKeys { it !in skip && !it.contains("systemui") && !it.contains("launcher") && !it.contains("nexuslauncher") }
+            .filterValues { it >= 60_000 } // almeno 1 minuto
+    }
+
+    fun totalTodayMs(ctx: Context): Long = todayByApp(ctx).values.sum()
+
+    /** Le [n] app più usate oggi, dalla più usata. */
+    fun topTodayApps(ctx: Context, n: Int = 5): List<Pair<String, Long>> =
+        todayByApp(ctx).entries.sortedByDescending { it.value }.take(n).map { it.key to it.value }
+
+    /** Media giornaliera di schermo attivo negli ultimi [days] giorni. */
+    fun avgDailyMs(ctx: Context, days: Int = 7): Long {
+        if (!hasPermission(ctx)) return 0
+        val skip = setOf("android", ctx.packageName)
+        val from = startOfDay() - (days - 1) * 86_400_000L
+        val total = foregroundTimes(ctx, from, System.currentTimeMillis())
+            .filterKeys { it !in skip && !it.contains("systemui") && !it.contains("launcher") }
+            .values.sum()
+        return total / days
     }
 }

@@ -56,6 +56,32 @@
             android:taskAffinity="com.frak89.gwackamole.guard"
             android:theme="@style/Theme.Gwack.Fullscreen" />
 
+        <activity
+            android:name=".ui.UnlockGateActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTask"
+            android:showWhenLocked="true"
+            android:taskAffinity="com.frak89.gwackamole.gate"
+            android:theme="@style/Theme.Gwack.Fullscreen" />
+
+        <activity
+            android:name=".ui.CooldownActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTask"
+            android:showWhenLocked="true"
+            android:taskAffinity="com.frak89.gwackamole.cooldown"
+            android:theme="@style/Theme.Gwack.Fullscreen" />
+
+        <activity
+            android:name=".ui.UsageReportActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTask"
+            android:taskAffinity="com.frak89.gwackamole.report"
+            android:theme="@style/Theme.Gwack.Fullscreen" />
+
         <service
             android:name=".service.GwackAccessibilityService"
             android:exported="true"

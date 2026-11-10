@@ -8,20 +8,22 @@ import android.telecom.TelecomManager
 import com.frak89.gwackamole.data.Blocklist
 import com.frak89.gwackamole.data.EventLog
 import com.frak89.gwackamole.data.Store
+import com.frak89.gwackamole.ui.CooldownActivity
 import com.frak89.gwackamole.ui.GuardActivity
 import com.frak89.gwackamole.ui.LockActivity
+import com.frak89.gwackamole.ui.UnlockGateActivity
+import com.frak89.gwackamole.ui.UsageReportActivity
 import kotlin.random.Random
 
-/** Perché è comparso il minigioco. */
+/** Perché è scattato il blocco. */
 enum class Reason(val title: String) {
     TIME_UP("Tempo finito"),
-    RANDOM("Talpa a sorpresa"),
-    SCREEN("Troppo tempo sullo schermo"),
+    RANDOM("Controllo a sorpresa"),
     ADULT_SITE("Sito bloccato"),
-    ADULT_LINK("Link coperto dalla talpa"),
+    ADULT_LINK("Link coperto"),
     USER_SITE("Sito in blacklist"),
     BYPASS("Tentativo di aggirare le regole"),
-    TEST("Partita di prova"),
+    TEST("Prova"),
 }
 
 /** Ponte verso il servizio di accessibilità (azioni globali). */
@@ -53,6 +55,9 @@ object Guardian {
     private var lastRandomRoll = 0L
     var screenOnSince = System.currentTimeMillis()
     private val recentlyHandled = HashMap<String, Long>()
+
+    private const val INTENSE_MS = 15 * 60_000L   // sessione ≥ 15 min = intensa
+    private const val REOPEN_GAP_MS = 15 * 60_000L // riapertura entro 15 min dall'uso intenso
 
     private val ignorePkgs = setOf("com.android.systemui", "android")
     private val alwaysAllowedWhenLocked = setOf(
@@ -105,22 +110,79 @@ object Guardian {
             if (pkg !in alwaysAllowedWhenLocked && pkg != dialerPkg()) showLock()
             return
         }
-        // app in blacklist
+        // app in blacklist (timer)
         checkAppTime(pkg)
+        // app molto usate oggi: cooldown se la riapri poco dopo un uso intenso
+        checkReopenCooldown(pkg, now)
     }
 
     private fun closeSession(now: Long) {
         val p = fgPkg ?: return
         val dur = now - fgSince
-        if (dur > 0 && Store.rules().containsKey(p)) {
+        if (dur <= 0) return
+        if (Store.rules().containsKey(p)) {
             Store.addUsedMs(p, dur)
             if (dur > 2_000) EventLog.log("SESSION", p, dur)
         }
+        // una sessione lunga è "intensa": segna la fine, serve al cooldown di riapertura
+        if (dur >= INTENSE_MS) Store.setLastIntenseEnd(p, now)
     }
+
+    /**
+     * App usata oltre il limite auto (default 1 h/giorno): se la riapri entro pochi minuti dalla
+     * fine di un uso intenso, parte un cooldown (default 1 minuto) prima di poterla usare.
+     */
+    private fun checkReopenCooldown(pkg: String, now: Long) {
+        val c = ctx ?: return
+        val limitMin = Store.autoLimitMin
+        if (limitMin <= 0 || own(pkg)) return
+        if (Store.cooldownClearedUntil(pkg) > now) return
+        if (UsageTracker.usedTodayMs(c, pkg) < limitMin * 60_000L) return
+        val since = now - Store.lastIntenseEnd(pkg)
+        if (since !in 1 until REOPEN_GAP_MS) return
+        val key = "cd:$pkg"
+        if ((recentlyHandled[key] ?: 0) > now - 5_000) return
+        recentlyHandled[key] = now
+        EventLog.log("COOLDOWN", pkg)
+        c.startActivity(Intent(c, CooldownActivity::class.java)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
+            .putExtra(CooldownActivity.EXTRA_PKG, pkg)
+            .putExtra(CooldownActivity.EXTRA_LABEL, labelOf(pkg)))
+    }
+
+    private fun labelOf(pkg: String): String = try {
+        val pm = ctx!!.packageManager
+        pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()
+    } catch (_: Exception) { pkg.substringAfterLast('.') }
 
     fun onScreen(on: Boolean) {
         val now = System.currentTimeMillis()
-        if (on) screenOnSince = now else closeSession(now).also { fgSince = now }
+        if (on) {
+            screenOnSince = now
+        } else {
+            Store.addScreenMs(now - screenOnSince) // conteggio uso di oggi
+            closeSession(now).also { fgSince = now }
+        }
+    }
+
+    /**
+     * Telefono sbloccato (schermo acceso + sblocco). A caso, e tanto più spesso quanto più hai
+     * usato il telefono oggi, compare la schermata "Vuoi proprio sbloccarmi?" con 1–3 conferme
+     * (0 = niente, se l'uso è ancora fresco).
+     */
+    fun onUnlock() {
+        val c = ctx ?: return
+        if (!Store.gateEnabled || Store.isLocked()) return
+        val now = System.currentTimeMillis()
+        if ((recentlyHandled["gate"] ?: 0) > now - 3_000) return
+        val tier = Store.usageTier()
+        if (tier <= 0) return
+        val chance = when (tier) { 1 -> 0.30; 2 -> 0.60; else -> 0.90 }
+        if (Random.nextDouble() >= chance) return
+        recentlyHandled["gate"] = now
+        c.startActivity(Intent(c, UnlockGateActivity::class.java)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
+            .putExtra(UnlockGateActivity.EXTRA_STEPS, tier))
     }
 
     /** URL letto dalla barra degli indirizzi di un browser. */
@@ -208,6 +270,7 @@ object Guardian {
         val c = ctx ?: return
         val now = System.currentTimeMillis()
         applyDuePending(c)
+        maybeShowReport(c)
 
         val pkg = fgPkg ?: return
         if (Store.isLocked(now)) {
@@ -233,17 +296,20 @@ object Guardian {
             }
         }
 
-        // troppo tempo di schermo continuo
-        val lim = Store.screenLimitMin
-        if (lim > 0 && now - screenOnSince > lim * 60_000L) {
-            screenOnSince = now
-            EventLog.log("SCREEN", "screen", lim.toLong())
-            block("screen", "Schermo", Reason.SCREEN)
-        }
     }
 
     private fun applyDuePending(c: Context) {
         for (p in Store.takeDuePending()) PendingApplier.apply(c, p)
+    }
+
+    /** Mostra il grafico d'uso una volta al giorno, quando superi la soglia di minuti totali. */
+    private fun maybeShowReport(c: Context) {
+        if (Store.reportShownDate == Store.today()) return
+        val limit = Store.usageReportMin
+        if (limit <= 0) return
+        if (UsageTracker.totalTodayMs(c) < limit * 60_000L) return
+        Store.reportShownDate = Store.today()
+        c.startActivity(Intent(c, UsageReportActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
 
     // ------------------------------------------------------------------ blocco
@@ -261,6 +327,10 @@ object Guardian {
         Store.incAttempts(target)
         Store.incLosses()
         EventLog.log("BLOCK", target, reason.ordinal.toLong())
+        // messaggio adatto al tipo/contenuto dell'app e alla durezza secondo l'uso di oggi
+        val pkgGuess = if (target.startsWith("site:") || target == "test") null else target
+        val kind = if (target.startsWith("site:")) AppKind.ADULT else null
+        Store.lockMessage = Messages.forApp(label, pkgGuess, kind = kind)
         if (reason != Reason.ADULT_LINK) host?.goHome()
         val sec = Store.kickLockSec + Store.lockStepSec * (Store.lossesToday() - 1).coerceAtLeast(0)
         Store.lockUntil = now + sec * 1000L

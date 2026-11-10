@@ -67,10 +67,64 @@ object Store {
         get() = sp.getInt("site_grace", 0)
         set(v) = sp.edit().putInt("site_grace", v.coerceIn(0, 5)).apply()
 
-    /** Minuti di schermo acceso continuo prima del blocco (0 = spento). */
-    var screenLimitMin: Int
-        get() = sp.getInt("screen_limit", 45)
-        set(v) = sp.edit().putInt("screen_limit", v).apply()
+    /** Conferma allo sblocco: "Vuoi proprio sbloccarmi?" con 0–3 passaggi secondo l'uso. */
+    var gateEnabled: Boolean
+        get() = sp.getBoolean("gate_enabled", true)
+        set(v) = sp.edit().putBoolean("gate_enabled", v).apply()
+
+    /** Blocca automaticamente le app usate più di tot minuti al giorno (0 = spento). */
+    var autoLimitMin: Int
+        get() = sp.getInt("auto_limit", 60)
+        set(v) = sp.edit().putInt("auto_limit", v).apply()
+
+    /** Minuti d'uso totale oltre i quali, a fine soglia, compare il grafico (0 = solo a fine giornata). */
+    var usageReportMin: Int
+        get() = sp.getInt("report_min", 180)
+        set(v) = sp.edit().putInt("report_min", v).apply()
+
+    /** Durata (s) del cooldown prima di riaprire un'app poco dopo un uso intenso. */
+    var reopenCooldownSec: Int
+        get() = sp.getInt("reopen_cd_s", 60)
+        set(v) = sp.edit().putInt("reopen_cd_s", v).apply()
+
+    // ---------- Uso del telefono (per decidere conferme, severità, auto-limite) ----------
+    /** Millisecondi di schermo acceso accumulati oggi. */
+    fun screenMsToday(): Long = sp.getLong("screen_ms_${today()}", 0)
+    fun addScreenMs(ms: Long) {
+        if (ms in 1..7_200_000) sp.edit().putLong("screen_ms_${today()}", screenMsToday() + ms).apply()
+    }
+
+    /**
+     * Livello d'uso di oggi: 0 fresco, 1 poco, 2 medio, 3 molto. È anche il numero di conferme
+     * richieste dalla schermata di sblocco e la durezza dei messaggi.
+     */
+    fun usageTier(): Int {
+        val min = screenMsToday() / 60_000
+        return when {
+            min < 25 -> 0
+            min < 75 -> 1
+            min < 150 -> 2
+            else -> 3
+        }
+    }
+
+    /** Fine di una sessione "intensa" su un'app (per il cooldown di riapertura). */
+    fun lastIntenseEnd(pkg: String): Long = sp.getLong("intense_$pkg", 0)
+    fun setLastIntenseEnd(pkg: String, t: Long) = sp.edit().putLong("intense_$pkg", t).apply()
+
+    /** Finché questo istante, l'app ha già fatto il cooldown e può essere usata senza riproporlo. */
+    fun cooldownClearedUntil(pkg: String): Long = sp.getLong("cdok_$pkg", 0)
+    fun clearCooldown(pkg: String, until: Long) = sp.edit().putLong("cdok_$pkg", until).apply()
+
+    /** Il grafico d'uso è già stato mostrato oggi? */
+    var reportShownDate: String
+        get() = sp.getString("report_date", "") ?: ""
+        set(v) = sp.edit().putString("report_date", v).apply()
+
+    /** Messaggio da mostrare nella schermata di pausa (impostato quando scatta un blocco). */
+    var lockMessage: String
+        get() = sp.getString("lock_msg", "") ?: ""
+        set(v) = sp.edit().putString("lock_msg", v).apply()
 
     /** Durata del blocco, in secondi (default 1 minuto). */
     var kickLockSec: Int

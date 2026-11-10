@@ -82,14 +82,43 @@ class RulesActivity : Activity() {
         }
 
         col.card {
+            eyebrow("Conferma allo sblocco")
+            switchRow("Chiedi \"Vuoi proprio sbloccarmi?\"", Store.gateEnabled) {
+                if (it != Store.gateEnabled) set("gate_enabled", it, "Conferma sblocco ${if (it) "on" else "off"}", looser = !it)
+            }
+            body("Compare a caso quando sblocchi, con più conferme se hai già usato tanto il telefono oggi (3 se tanto, 2 medio, 1 poco, 0 se fresco). Mettere via il telefono è sempre libero.")
+        }
+
+        col.card {
+            eyebrow("App usate troppo")
+            sliderRow("Limita chi supera al giorno", 0, 8, Store.autoLimitMin / 15, { if (it == 0) "mai" else "${it * 15} min" }) {
+                val v = it * 15
+                if (v != Store.autoLimitMin) set("auto_limit", v, "Auto-limite $v min", looser = v == 0 || v > Store.autoLimitMin)
+            }
+            sliderRow("Cooldown prima di riaprirle", 1, 10, Store.reopenCooldownSec / 30, {
+                val s = it * 30; if (s % 60 == 0) "${s / 60} min" else "${s}s"
+            }) {
+                val v = it * 30
+                if (v != Store.reopenCooldownSec) set("reopen_cd_s", v, "Cooldown riapertura ${v}s", looser = v < Store.reopenCooldownSec)
+            }
+            body("Un'app oltre questa soglia, riaperta poco dopo un uso intenso, chiede di aspettare un minuto.")
+        }
+
+        col.card {
             eyebrow("Blocchi a sorpresa")
             switchRow("Durante l'uso delle app in blacklist", Store.randomChecks) {
                 if (it != Store.randomChecks) set("random_checks", it, "A sorpresa ${if (it) "on" else "off"}", looser = !it)
             }
-            sliderRow("Schermo acceso di fila", 0, 12, Store.screenLimitMin / 15, { if (it == 0) "mai" else "${it * 15} min" }) {
-                val v = it * 15
-                val old = Store.screenLimitMin
-                if (v != old) set("screen_limit", v, "Blocco dopo $v min di schermo", looser = v == 0 || (old != 0 && v > old))
+        }
+
+        col.card {
+            eyebrow("Quadro d'uso")
+            sliderRow("Mostra il grafico oltre", 1, 8, Store.usageReportMin / 30, { val s = it * 30; "${s / 60}h ${s % 60}m" }) {
+                val v = it * 30
+                if (v != Store.usageReportMin) set("report_min", v, "Grafico oltre $v min", looser = v > Store.usageReportMin)
+            }
+            button("Vedi il quadro d'uso adesso", primary = false) {
+                startActivity(android.content.Intent(this@RulesActivity, UsageReportActivity::class.java))
             }
         }
 

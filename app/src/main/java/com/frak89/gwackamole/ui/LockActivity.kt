@@ -1,18 +1,12 @@
 package com.frak89.gwackamole.ui
 
-import android.annotation.SuppressLint
 import android.app.Activity
-import android.content.Context
 import android.content.Intent
-import android.graphics.Canvas
-import android.graphics.Paint
-import android.graphics.RectF
 import android.graphics.Typeface
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.view.Gravity
-import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.FrameLayout
@@ -38,7 +32,7 @@ class LockActivity : Activity() {
         super.onCreate(savedInstanceState)
         Store.init(this)
         if (Build.VERSION.SDK_INT >= 27) setShowWhenLocked(true)
-        val dark = 0xFF0C0C0C.toInt()
+        val dark = Neon.BG
         window.statusBarColor = dark
         window.navigationBarColor = dark
 
@@ -46,22 +40,21 @@ class LockActivity : Activity() {
             orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL
             setBackgroundColor(dark); setPadding(dp(28), dp(64), dp(28), dp(32))
         }
-        col.addView(BlockMark(this), LinearLayout.LayoutParams(dp(96), dp(96)).apply { gravity = Gravity.CENTER_HORIZONTAL })
+        col.addView(Neon.mark(this), LinearLayout.LayoutParams(dp(92), dp(92)).apply { gravity = Gravity.CENTER_HORIZONTAL })
         col.addView(TextView(this).apply {
-            text = "NERO BLOCK"; textSize = 13f; setTextColor(0xFF8A8A8A.toInt()); typeface = Typeface.DEFAULT_BOLD
-            letterSpacing = 0.2f; gravity = Gravity.CENTER; setPadding(0, dp(20), 0, dp(6))
+            text = "NERO BLOCK"; textSize = 13f; setTextColor(0xFF2DD4FF.toInt()); typeface = Typeface.DEFAULT_BOLD
+            letterSpacing = 0.25f; gravity = Gravity.CENTER; setPadding(0, dp(20), 0, dp(6))
         })
         col.addView(TextView(this).apply {
             text = if (Store.kickLockSec == 60) "Un minuto di pausa" else "Telefono in pausa"
             textSize = 34f; setTextColor(0xFFFFFFFF.toInt()); gravity = Gravity.CENTER
             typeface = Typeface.create("sans-serif-black", Typeface.NORMAL)
         })
-        val quote = Store.randomText()
+        val quote = Store.lockMessage.ifBlank { Store.randomText() ?: "" }
         col.addView(TextView(this).apply {
-            text = quote?.let { "“$it”" } ?: "Riprova quando il conto alla rovescia arriva a zero."
-            textSize = if (quote != null) 18f else 15f
-            setTextColor(if (quote != null) 0xFFFFFFFF.toInt() else 0xFFBDBDBD.toInt())
-            if (quote != null) typeface = Typeface.create("serif", Typeface.ITALIC)
+            text = quote.ifBlank { "Riprova quando il conto alla rovescia arriva a zero." }
+            textSize = if (quote.isNotBlank()) 18f else 15f
+            setTextColor(if (quote.isNotBlank()) 0xFFF2F2FF.toInt() else 0xFFBDBDBD.toInt())
             gravity = Gravity.CENTER; setPadding(dp(6), dp(12), dp(6), dp(18))
         })
         clock = TextView(this).apply {
@@ -97,23 +90,4 @@ class LockActivity : Activity() {
     @Deprecated("Indietro disattivato durante il blocco")
     @Suppress("DEPRECATION")
     override fun onBackPressed() { /* niente */ }
-
-    @SuppressLint("ViewConstructor")
-    private class BlockMark(ctx: Context) : View(ctx) {
-        private val p = Paint(Paint.ANTI_ALIAS_FLAG)
-        private val s = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = 0xFFFFFFFF.toInt(); style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND
-        }
-        private val rr = RectF()
-        override fun onDraw(c: Canvas) {
-            val w = width.toFloat(); val h = height.toFloat()
-            p.color = 0xFF1A1A1A.toInt()
-            rr.set(w * 0.1f, h * 0.1f, w * 0.9f, h * 0.9f)
-            c.drawRoundRect(rr, w * 0.2f, w * 0.2f, p)
-            s.strokeWidth = w * 0.07f
-            val cx = w / 2; val cy = h / 2; val r = w * 0.22f
-            c.drawCircle(cx, cy, r, s)
-            c.drawLine(cx - r * 0.7f, cy - r * 0.7f, cx + r * 0.7f, cy + r * 0.7f, s)
-        }
-    }
 }

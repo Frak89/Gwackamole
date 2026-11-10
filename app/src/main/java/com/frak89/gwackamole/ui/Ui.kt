@@ -19,16 +19,20 @@ import android.widget.Toast
 import com.frak89.gwackamole.core.PendingApplier
 import com.frak89.gwackamole.data.Store
 
-/** Piccolo kit di UI programmatica (nessuna dipendenza esterna). */
+/**
+ * Piccolo kit di UI programmatica (nessuna dipendenza esterna).
+ * Palette cyberpunk: nero di fondo, viola e blu al neon, bianco dove serve.
+ */
 object C {
-    const val GROUND = 0xFFF7F1E3.toInt()
-    const val CARD = 0xFFFFFFFF.toInt()
-    const val INK = 0xFF2B2118.toInt()
-    const val MUTED = 0xFF5C4D3D.toInt()
-    const val GREEN = 0xFF2F4A17.toInt()
-    const val GRASS = 0xFF5B8C32.toInt()
-    const val ORANGE = 0xFFC2410C.toInt()
-    const val SOFT = 0xFFF2EBDA.toInt()
+    const val GROUND = 0xFF0A0A12.toInt()   // nero-bluastro di fondo
+    const val CARD = 0xFF15132A.toInt()      // superficie viola scuro
+    const val INK = 0xFFF2F2FF.toInt()       // bianco quasi puro
+    const val MUTED = 0xFF9A93C7.toInt()     // lavanda tenue
+    const val GREEN = 0xFFB65CFF.toInt()      // accento primario: viola neon
+    const val GRASS = 0xFF2DD4FF.toInt()      // accento secondario: ciano/blu neon
+    const val ORANGE = 0xFFFF4D9D.toInt()     // avvisi: magenta
+    const val SOFT = 0xFF1E1B3A.toInt()       // superficie soft / bottone secondario
+    const val LINE = 0xFF34306A.toInt()       // bordi neon tenui
 }
 
 fun Context.dp(v: Int): Int = (v * resources.displayMetrics.density).toInt()

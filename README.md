@@ -1,6 +1,6 @@
 # Nero Block
 
-App Android anti-distrazioni, **versione senza minigioco**. È la gemella di Gwackamole (branch `gwackamole-v0.1`): stesso scopo e stesse protezioni, ma al posto delle talpe da martellare il blocco è secco — **uscita forzata dall'app e telefono in pausa per un minuto** (durata regolabile).
+App Android anti-distrazioni, **versione senza minigioco**, in **stile cyberpunk** (nero, viola e blu neon). È la gemella di Gwackamole (branch `gwackamole-v0.1`): stesso scopo e stesse protezioni, ma al posto delle talpe da martellare il blocco è secco — **uscita forzata dall'app e telefono in pausa per un minuto** (durata regolabile).
 
 > Le due edizioni hanno `applicationId` diversi (`com.frak89.neroblock` qui, `com.frak89.gwackamole` nell'altra), quindi si possono installare entrambe sullo stesso telefono.
 
@@ -9,9 +9,12 @@ App Android anti-distrazioni, **versione senza minigioco**. È la gemella di Gwa
 | Funzione | Come |
 |---|---|
 | **Blocco secco** | Quando scatta un blocco l'app in primo piano si chiude (torni alla Home) e lo schermo si spegne. Al riavvio trovi un conto alla rovescia (default 1 min, +60 s per ogni blocco successivo nella stessa giornata). Nessun gioco, nessun modo di “vincere” tempo. |
-| **Testi personalizzati** | Messaggi scritti da te che compaiono a caso nella schermata di pausa e quando provi ad aggirare le regole. |
+| **Conferma allo sblocco** | A caso, quando sblocchi, compare "Vuoi proprio sbloccarmi?" con **0–3 conferme a seconda di quanto hai usato il telefono oggi** (3 se tanto, 2 medio, 1 poco, 0 se fresco). Mettere via il telefono è sempre libero. |
+| **Messaggi su misura e più duri** | I testi si adattano al **tipo e al contenuto dell'app** (scroll, video, gioco, chat, shopping…) e diventano **più severi ed espliciti man mano che usi di più**, per scuoterti quando scrolli senza accorgertene. Restano fermi, mai offensivi. Puoi aggiungere i tuoi testi. |
+| **Quadro d'uso cyberpunk** | A fine giornata o oltre una soglia di minuti totali compare un grafico al neon con quanto usi il telefono (e la media a 7 giorni) e quali app ti prendono di più. Dalle app oltre 1 h/giorno imposti un limite con un tocco. |
+| **Auto-limite app pesanti** | Le app usate oltre ~1 ora al giorno vengono tenute d'occhio: se le riapri poco dopo un uso intenso parte un **cooldown di 1 minuto** prima di poterle usare. |
 | **Timer per app** | Ogni app in blacklist ha minuti al giorno. Accorciarli vale subito; allungarli o togliere l'app passa dal cooldown. Finito il tempo → blocco. |
-| **Blocchi a sorpresa** | Opzionali, per app, con probabilità adattata a quanto quell'app ti “cattura”. Più un limite per troppo tempo di schermo continuo. |
+| **Blocchi a sorpresa** | Opzionali, per app, con probabilità adattata a quanto quell'app ti “cattura”. |
 | **Siti per adulti** | Blocco per dominio (lista inclusa + imparati dalle ricerche + liste pubbliche) o per parole nell'URL. |
 | **Filtro sui risultati di ricerca** | Nei risultati di Google/Bing/DuckDuckGo… i link vietati vengono coperti da un banner **dello stesso colore di fondo della pagina** (chiaro o scuro), senza bordo, così si confonde con essa. Toccarlo blocca il telefono; la ricerca resta intatta. I banner si riusano e si spostano con lo scroll, così reagiscono subito. |
 | **Impara i siti** | Se titolo o snippet di un risultato contiene porn/porno/xxx/hentai…, il dominio va in blacklist da solo. Nessuno scraping dei motori: usa solo i risultati che hai davanti. |
