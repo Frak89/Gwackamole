@@ -96,6 +96,20 @@ class MainActivity : Activity() {
         col.body("Quando arriva una distrazione l'app si chiude e il telefono va in pausa per un po'. Nessun gioco, nessuna scorciatoia.")
         col.gap(16)
 
+        // Scatola nera: se c'è stato un crash, mostralo qui così si può leggere senza PC.
+        com.frak89.gwackamole.data.CrashLog.last()?.let { crash ->
+            val c = col.card {
+                eyebrow("⚠ Ultimo errore registrato")
+                body(crash, C.INK, 11f)
+                button("Ho copiato, pulisci") {
+                    (getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager)
+                        .setPrimaryClip(android.content.ClipData.newPlainText("crash", crash))
+                    com.frak89.gwackamole.data.CrashLog.clear(); toast("Copiato negli appunti"); render()
+                }
+            }
+            c.background = rounded(0xFF2A0F2A.toInt(), dp(18).toFloat(), dp(1), C.ORANGE)
+        }
+
         // Avviso ben visibile se il servizio è spento: senza, niente protezioni né blocchi.
         if (!accessibilityOn()) {
             val warn = col.card {

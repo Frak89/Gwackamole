@@ -82,8 +82,10 @@ object Blocklist {
         if (::appCtx.isInitialized) return
         appCtx = ctx.applicationContext
         io.execute {
-            learned = readSet(learnedFile()).toMutableSet()
-            downloaded = readSet(downloadedFile())
+            try {
+                learned = readSet(learnedFile()).toMutableSet()
+                downloaded = readSet(downloadedFile())
+            } catch (_: Throwable) { }
         }
     }
 

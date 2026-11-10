@@ -24,11 +24,13 @@ object EventLog {
         val f = file ?: return
         val line = "${System.currentTimeMillis()}|$type|${target.replace('|', '_')}|$value\n"
         io.execute {
-            f.appendText(line)
-            if (f.length() > 600_000) {
-                val keep = f.readLines().takeLast(MAX_LINES / 2)
-                f.writeText(keep.joinToString("\n", postfix = "\n"))
-            }
+            try {
+                f.appendText(line)
+                if (f.length() > 600_000) {
+                    val keep = f.readLines().takeLast(MAX_LINES / 2)
+                    f.writeText(keep.joinToString("\n", postfix = "\n"))
+                }
+            } catch (_: Throwable) { }
         }
     }
 

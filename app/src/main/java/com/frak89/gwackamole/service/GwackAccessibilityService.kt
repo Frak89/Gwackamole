@@ -57,17 +57,17 @@ class GwackAccessibilityService : AccessibilityService(), GuardianHost {
     override fun onServiceConnected() {
         super.onServiceConnected()
         // Tutto in try/catch: un errore qui farebbe segnare il servizio come "malfunzionante".
-        try { Store.init(this); EventLog.init(this); Blocklist.init(this) } catch (_: Throwable) { }
+        try { Store.init(this); EventLog.init(this); Blocklist.init(this) } catch (e: Throwable) { com.frak89.gwackamole.data.CrashLog.note("connect-init", e) }
         overlay = BlockOverlay(this)
         shield = Shield(this)
-        try { refreshPackageSets() } catch (_: Throwable) { }
+        try { refreshPackageSets() } catch (e: Throwable) { com.frak89.gwackamole.data.CrashLog.note("pkgsets", e) }
         try {
             registerReceiver(screenReceiver, IntentFilter().apply {
                 addAction(Intent.ACTION_SCREEN_ON); addAction(Intent.ACTION_SCREEN_OFF)
                 addAction(Intent.ACTION_USER_PRESENT)
             })
         } catch (_: Throwable) { }
-        try { Guardian.attach(this) } catch (_: Throwable) { }
+        try { Guardian.attach(this) } catch (e: Throwable) { com.frak89.gwackamole.data.CrashLog.note("attach", e) }
     }
 
     override fun onUnbind(intent: Intent?): Boolean {
@@ -149,7 +149,7 @@ class GwackAccessibilityService : AccessibilityService(), GuardianHost {
     // ------------------------------------------------------------------ eventi
 
     override fun onAccessibilityEvent(e: AccessibilityEvent) {
-        try { handleEvent(e) } catch (_: Throwable) { /* mai far cadere il servizio per un evento */ }
+        try { handleEvent(e) } catch (t: Throwable) { com.frak89.gwackamole.data.CrashLog.note("event", t) }
     }
 
     private fun handleEvent(e: AccessibilityEvent) {
@@ -226,7 +226,7 @@ class GwackAccessibilityService : AccessibilityService(), GuardianHost {
         h.postDelayed(browserScan, delay)
     }
 
-    private val browserScan = Runnable { try { runBrowserScan() } catch (_: Throwable) { } }
+    private val browserScan = Runnable { try { runBrowserScan() } catch (e: Throwable) { com.frak89.gwackamole.data.CrashLog.note("browserScan", e) } }
 
     private fun runBrowserScan() {
         val pkg = scanPkg ?: return

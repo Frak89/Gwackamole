@@ -70,7 +70,7 @@ object Guardian {
 
     private val tickRunnable = object : Runnable {
         override fun run() {
-            try { tick() } catch (_: Throwable) { /* un errore non deve mai fermare il guardiano */ }
+            try { tick() } catch (e: Throwable) { com.frak89.gwackamole.data.CrashLog.note("tick", e) }
             h.postDelayed(this, 5_000)
         }
     }
